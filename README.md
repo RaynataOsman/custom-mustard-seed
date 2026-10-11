@@ -27,6 +27,8 @@ Every part can be switched on or off in **Settings > Features**.
 
 ## Get started
 
+Handing over to a developer or another Claude session: **[docs/HANDOFF.md](docs/HANDOFF.md)**.
+
 Non-technical step-by-step guide: **[docs/SETUP_GUIDE.md](docs/SETUP_GUIDE.md)** (about an hour, once).
 
 Short version for the technical: Windows, Python 3.11+, `setup.bat`, `start.bat`, open http://localhost:8766,
