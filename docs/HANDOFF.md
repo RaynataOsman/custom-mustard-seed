@@ -198,6 +198,9 @@ OPENROUTER_API_KEY, NOTION_TOKEN, GMAIL_ADDRESS, GMAIL_APP_PASSWORD.
 5. Commit and push from the PC. `gh` there is logged in as 187jjay187; the sandbox GH token is invalid.
 
 **PowerShell gotchas**
+- `Start-Process ... -RedirectStandardOutput` often hangs the remote call. Use instead:
+  `cmd /c 'start "Title" /min cmd /c "title Title && python x.py > logs\x.txt 2>&1"'`.
+  The window title must not be empty: Node (Playwright's driver) asserts on an empty console title.
 - Calls time out at about 60 seconds. Run long jobs with
   `Start-Process -WindowStyle Hidden python ... -RedirectStandardOutput logs\x.txt` and read the log
   afterwards. Starting the dashboard this way can itself hang the call, so check it with a separate call.
@@ -244,6 +247,34 @@ OPENROUTER_API_KEY, NOTION_TOKEN, GMAIL_ADDRESS, GMAIL_APP_PASSWORD.
 - Publish the empty tracker as a Notion template for family.
 - Invite family to the repo.
 - Optionally point resume_copies at Google Drive for Desktop.
+
+## 5b. 12 Oct fixes
+
+- **Locked scanning profile.** Browser boards failed with "Opening in existing browser session". Cause:
+  sign-in windows left running and Chrome child processes surviving `terminate()`.
+  - `render.py` now starts **one Chrome per scan**, shared by all browser boards (`session()` / `shutdown()`).
+  - It kills the whole process tree on close and clears leftovers on start.
+  - It skips browser boards while a sign-in window is open (`data/login_open.json`).
+- **The blank window.** The scan Chrome's first tab is `ui/scanning.html` ("Mustard Seed is reading job boards")
+  instead of about:blank.
+- **Sign-ins.** The Boards tab has a Sign-ins panel built from `config.signins`.
+  - Each site has a button for the scanning profile (`data/real-chrome`) and/or the applying profile
+    (`data/apply-profile`), plus "open all".
+  - Last-opened times are kept in `data/signins.json`, and the window closes itself after 20 minutes.
+- **Review / All found filters.** Quick categories (`LENSES` in app.py): best, open_sa, fresh, contract, overseas,
+  long_shot. Dropdowns for resume, level, employer and source; sort and search. `/api/jobs/facets` gives the counts.
+  Filters are remembered per view.
+- **Titles from URLs.** When link text isn't a title ("7 days ago", "Apply"), `render._slug_title` reads the title
+  from the URL slug. This fixes remote.co, Built In and similar boards.
+- **Board fixes.** New link patterns for relocate.me and landing.jobs. Mercor and Ruby on Remote are off: Mercor is
+  sign-up only and Ruby isn't his stack.
+- **Cover letters.**
+  - They follow the structure and voice of `masters/cover_letter_example.txt` (Settings > Cover letter example),
+    run 250-350 words, start "Dear <Company> team," and sign off "Kind regards".
+  - `tailor.guard_cover` drops sentences stating figures not on the resume.
+  - The .docx is laid out as a letter (name, contact line, date, "Re:").
+- **Bug fixed.** Switching off AI tailoring no longer crashes `tailor()`: it raises `llm.NoLLM`, which falls back to
+  keyword mode.
 
 ## 6. Backlog (suggested order)
 
