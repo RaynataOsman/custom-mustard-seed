@@ -138,7 +138,7 @@ def job_action(job_id, body):
     elif a == "skip":
         db.set_job(c, job_id, status="skipped", status_note=note or None)
     elif a == "reopen":
-        db.set_job(c, job_id, status="new")
+        db.set_job(c, job_id, status="ready")
     elif a == "done":  # finished by hand in the browser
         db.set_job(c, job_id, status="submitted", applied_at=now_iso(), status_note="finished by you")
         c.commit()
@@ -310,6 +310,11 @@ def upload_master(b):
 ALLOWED_FILE_ROOTS = lambda: [Path(load_config()["paths"]["resume_copies"]).resolve(), OUT.resolve()]
 
 
+def allowed_file(path):
+    """Compare path components, not prefixes (out-private is not inside out)."""
+    return any(path.is_relative_to(root) for root in ALLOWED_FILE_ROOTS())
+
+
 class H(BaseHTTPRequestHandler):
     def log_message(self, *a):
         pass
@@ -340,6 +345,9 @@ class H(BaseHTTPRequestHandler):
         try:
             if u.path in ("/", "/index.html"):
                 return self._send(200, (ROOT / "ui" / "index.html").read_bytes(), "text/html")
+            if u.path == "/seed.svg":
+                p = ROOT / "ui" / u.path.lstrip("/")
+                return self._send(200, p.read_bytes(), mimetypes.guess_type(p.name)[0])
             if u.path == "/api/overview":
                 return self._send(200, overview())
             if u.path == "/api/health":
@@ -376,11 +384,13 @@ class H(BaseHTTPRequestHandler):
                                         for n in KEY_NAMES})
             if u.path == "/file":
                 p = Path(q.get("path", [""])[0]).resolve()
-                if not any(str(p).startswith(str(r)) for r in ALLOWED_FILE_ROOTS()) or not p.exists():
+                if not allowed_file(p) or not p.is_file():
                     return self._send(404, {"error": "not found"})
                 return self._send(200, p.read_bytes(), mimetypes.guess_type(p.name)[0] or "application/octet-stream")
             if u.path == "/open-folder":
-                p = Path(q.get("path", [""])[0])
+                p = Path(q.get("path", [""])[0]).resolve()
+                if not allowed_file(p):
+                    return self._send(403, {"error": "folder is outside the output folders"})
                 if p.exists() and sys.platform == "win32":
                     subprocess.Popen(["explorer", "/select,", str(p)] if p.is_file() else ["explorer", str(p)])
                 return self._send(200, {"ok": True})

@@ -4,7 +4,10 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Mustard Seed</title>
-<script src="https://cdn.tailwindcss.com"></script>
+<link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20viewBox%3D%220%200%2048%2048%22%3E%3Crect%20width%3D%2248%22%20height%3D%2248%22%20rx%3D%2214%22%20fill%3D%22%23e4b83e%22%2F%3E%3Cpath%20d%3D%22M24%2032V20%22%20fill%3D%22none%22%20stroke%3D%22%2335452e%22%20stroke-width%3D%222.5%22%20stroke-linecap%3D%22round%22%2F%3E%3Cpath%20d%3D%22M24%2024C15%2025%2012%2019%2014%2013c8%200%2012%204%2010%2011Z%22%20fill%3D%22%2335452e%22%2F%3E%3Cpath%20d%3D%22M24%2020c0-7%205-10%2011-9%200%206-4%2010-11%209Z%22%20fill%3D%22%23526941%22%2F%3E%3Cellipse%20cx%3D%2224%22%20cy%3D%2234%22%20rx%3D%225%22%20ry%3D%224%22%20fill%3D%22%23846018%22%2F%3E%3C%2Fsvg%3E">
+<script>
+try { document.documentElement.dataset.theme = localStorage.getItem('mustard-theme') || (matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light'); } catch { document.documentElement.dataset.theme = 'light'; }
+</script>
 <style>
   body{font-family:Inter,ui-sans-serif,system-ui,Segoe UI,sans-serif}
   .btn{display:inline-flex;align-items:center;gap:.35rem;border-radius:.5rem;padding:.4rem .75rem;font-size:.82rem;font-weight:500;border:1px solid #e4e4e7;background:#fff;color:#18181b;cursor:pointer;transition:background .15s}
@@ -21,25 +24,172 @@
   pre{white-space:pre-wrap;word-break:break-word}
   input,textarea,select{border:1px solid #e4e4e7;border-radius:.5rem;padding:.4rem .6rem;font-size:.85rem}
 </style>
+<style id="dashboard-theme">
+/* Local layout utilities: no network or runtime CSS compiler required. */
+*,::before,::after{box-sizing:border-box;border-width:0;border-style:solid}h1,h2,h3,p,pre{margin:0}button,input,textarea,select{font:inherit}button,a,summary{touch-action:manipulation}button{cursor:pointer}a{color:inherit;text-decoration:inherit}img,svg{display:block}table{border-collapse:collapse}textarea{resize:vertical}ul{margin:0;padding:0}button{background:transparent}input[type=file]{font-size:12px}
+.flex{display:flex}
+.grid{display:grid}
+.block{display:block}
+.hidden{display:none}
+.flex-wrap{flex-wrap:wrap}
+.flex-1{flex:1 1 0%}
+.items-center{align-items:center}
+.items-start{align-items:flex-start}
+.justify-between{justify-content:space-between}
+.text-center{text-align:center}
+.text-right{text-align:right}
+.text-left{text-align:left}
+.w-full{width:100%}
+.w-20{width:5rem}
+.h-56{height:14rem}
+.h-\[420px\]{height:420px}
+.h-\[480px\]{height:480px}
+.min-w-\[220px\]{min-width:220px}
+.max-w-6xl{max-width:72rem}
+.mx-auto{margin-left:auto;margin-right:auto}
+.overflow-auto{overflow:auto}
+.overflow-x-auto{overflow-x:auto}
+.fixed{position:fixed}
+.bottom-4{bottom:1rem}
+.right-4{right:1rem}
+.border-t{border-top-width:1px}
+.border-b{border-bottom-width:1px}
+.rounded{border-radius:.25rem}
+.rounded-lg{border-radius:.5rem}
+.font-medium{font-weight:500}
+.font-semibold{font-weight:600}
+.font-normal{font-weight:400}
+.font-mono{font-family:ui-monospace,monospace}
+.tracking-tight{letter-spacing:-.025em}
+.text-xs{font-size:.75rem;line-height:1.5}
+.text-sm{font-size:.875rem;line-height:1.5}
+.text-base{font-size:1rem}
+.text-xl{font-size:1.25rem}
+.text-2xl{font-size:1.5rem}
+.line-through{text-decoration:line-through}
+.list-disc{list-style-type:disc}
+.shadow-lg{box-shadow:0 10px 25px #0002}
+.grid-cols-2{grid-template-columns:repeat(2,minmax(0,1fr))}
+.text-green-700{color:#15803d}
+.text-red-700{color:#b91c1c}
+.text-amber-700{color:#a16207}
+.text-amber-800{color:#854d0e}
+.text-white{color:#fff}
+.bg-green-50{background:#f0fdf4}
+.bg-red-50{background:#fef2f2}
+.bg-amber-50{background:#fffbeb}
+.bg-red-600{background:#dc2626}
+.border-red-600{border-color:#dc2626}
+.border-green-200{border-color:#bbf7d0}
+.border-red-200{border-color:#fecaca}
+.border-amber-200{border-color:#fde68a}
+.p-1{padding:0.25rem}
+.m-1{margin:0.25rem}
+.gap-1{gap:0.25rem}
+.px-1{padding-left:0.25rem;padding-right:0.25rem}
+.mx-1{margin-left:0.25rem;margin-right:0.25rem}
+.py-1{padding-top:0.25rem;padding-bottom:0.25rem}
+.my-1{margin-top:0.25rem;margin-bottom:0.25rem}
+.mt-1{margin-top:0.25rem}
+.mb-1{margin-bottom:0.25rem}
+.ml-1{margin-left:0.25rem}
+.p-2{padding:0.5rem}
+.m-2{margin:0.5rem}
+.gap-2{gap:0.5rem}
+.px-2{padding-left:0.5rem;padding-right:0.5rem}
+.mx-2{margin-left:0.5rem;margin-right:0.5rem}
+.py-2{padding-top:0.5rem;padding-bottom:0.5rem}
+.my-2{margin-top:0.5rem;margin-bottom:0.5rem}
+.mt-2{margin-top:0.5rem}
+.mb-2{margin-bottom:0.5rem}
+.ml-2{margin-left:0.5rem}
+.p-3{padding:0.75rem}
+.m-3{margin:0.75rem}
+.gap-3{gap:0.75rem}
+.px-3{padding-left:0.75rem;padding-right:0.75rem}
+.mx-3{margin-left:0.75rem;margin-right:0.75rem}
+.py-3{padding-top:0.75rem;padding-bottom:0.75rem}
+.my-3{margin-top:0.75rem;margin-bottom:0.75rem}
+.mt-3{margin-top:0.75rem}
+.mb-3{margin-bottom:0.75rem}
+.ml-3{margin-left:0.75rem}
+.p-4{padding:1rem}
+.m-4{margin:1rem}
+.gap-4{gap:1rem}
+.px-4{padding-left:1rem;padding-right:1rem}
+.mx-4{margin-left:1rem;margin-right:1rem}
+.py-4{padding-top:1rem;padding-bottom:1rem}
+.my-4{margin-top:1rem;margin-bottom:1rem}
+.mt-4{margin-top:1rem}
+.mb-4{margin-bottom:1rem}
+.ml-4{margin-left:1rem}
+.p-5{padding:1.25rem}
+.m-5{margin:1.25rem}
+.gap-5{gap:1.25rem}
+.px-5{padding-left:1.25rem;padding-right:1.25rem}
+.mx-5{margin-left:1.25rem;margin-right:1.25rem}
+.py-5{padding-top:1.25rem;padding-bottom:1.25rem}
+.my-5{margin-top:1.25rem;margin-bottom:1.25rem}
+.mt-5{margin-top:1.25rem}
+.mb-5{margin-bottom:1.25rem}
+.ml-5{margin-left:1.25rem}
+.p-8{padding:2rem}
+.m-8{margin:2rem}
+.gap-8{gap:2rem}
+.px-8{padding-left:2rem;padding-right:2rem}
+.mx-8{margin-left:2rem;margin-right:2rem}
+.py-8{padding-top:2rem;padding-bottom:2rem}
+.my-8{margin-top:2rem;margin-bottom:2rem}
+.mt-8{margin-top:2rem}
+.mb-8{margin-bottom:2rem}
+.ml-8{margin-left:2rem}
+.space-y-2>*+*{margin-top:.5rem}
+@media(min-width:768px){.md\:grid-cols-2{grid-template-columns:repeat(2,minmax(0,1fr))}.md\:col-span-2{grid-column:span 2/span 2}.md\:grid-cols-3{grid-template-columns:repeat(3,minmax(0,1fr))}.md\:col-span-3{grid-column:span 3/span 3}.md\:grid-cols-5{grid-template-columns:repeat(5,minmax(0,1fr))}.md\:col-span-5{grid-column:span 5/span 5}}
+/* Mustard Seed: semantic tokens shared by both themes. */
+:root{color-scheme:light;--canvas:#f7f5ef;--surface:#fffefa;--subtle:#efede5;--ink:#292c24;--muted:#686c5e;--line:#dedfd4;--accent:#e4b83e;--accent-hover:#d2a527;--accent-ink:#352907;--green:#34624a;--shadow:0 3px 16px #32382305}
+:root[data-theme=dark]{color-scheme:dark;--canvas:#171b17;--surface:#202620;--subtle:#2b322a;--ink:#eeeFE6;--muted:#afb8a8;--line:#3c4539;--accent:#e4b83e;--accent-hover:#f0c951;--accent-ink:#302506;--green:#aed6b4;--shadow:0 3px 16px #00000012}
+html{background:var(--canvas);scroll-behavior:smooth}
+body.bg-zinc-50{background:var(--canvas);color:var(--ink);font-family:'Segoe UI',system-ui,sans-serif;line-height:1.6;margin:0}
+.app-shell{max-width:1240px!important;padding:32px 32px 64px!important}
+header{padding-bottom:26px;border-bottom:1px solid var(--line);margin-bottom:24px!important}
+.brand{display:flex;align-items:center;gap:12px}.brand h1{font-size:23px;font-weight:650;letter-spacing:-.8px;line-height:1.2}.brand-caption{font-size:12px;color:var(--muted);margin-top:4px}#sub{font-size:11px;margin-top:14px;color:var(--muted)}
+body .btn{min-height:38px;justify-content:center;border:1px solid var(--line);border-radius:9px;background:var(--surface);color:var(--ink);padding:8px 13px;font-size:12px;font-weight:600;box-shadow:0 1px 2px #00000004;transition:background .15s, border-color .15s}
+body .btn:hover{background:var(--subtle);border-color:var(--muted)}body .btn-primary{background:var(--accent);color:var(--accent-ink);border-color:var(--accent)}body .btn-primary:hover{background:var(--accent-hover);border-color:var(--accent-hover)}body .btn-green{background:#34624a;color:#fff;border-color:#34624a}body .btn-green:hover{background:#254c37}body .btn-ghost{background:transparent;border-color:transparent;box-shadow:none}
+body .card{background:var(--surface);border:1px solid var(--line);border-radius:14px;box-shadow:var(--shadow)}body .muted{color:var(--muted)}body .badge{border-color:var(--line);font-size:11px;font-weight:500;padding:2px 8px}
+.metrics{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:14px;margin-bottom:30px}.metric{display:flex;flex-direction:column;align-items:flex-start;text-align:left;gap:10px;padding:18px 22px;border:1px solid var(--line);border-radius:14px;background:var(--surface);color:var(--muted);font-size:12px;transition:border-color .15s}.metric:hover{border-color:var(--accent)}.metric:first-child{background:var(--accent);color:var(--accent-ink);border-color:var(--accent)}.metric strong{font-size:34px;line-height:1.1;font-weight:550;letter-spacing:-1px;color:var(--ink)}.metric:first-child strong{color:var(--accent-ink)}.metric-link{font-size:11px;display:flex;justify-content:space-between;width:100%}
+#tabs{background:transparent;padding:0 0 12px;gap:5px;border-bottom:1px solid var(--line);border-radius:0;margin-bottom:28px}body .tab{min-height:42px;padding:8px 13px;border:1px solid transparent;font-size:12px;border-radius:8px;color:var(--muted);white-space:nowrap}body .tab:hover{background:var(--subtle)}body .tab.active{background:var(--ink);color:var(--canvas);box-shadow:none}body .tab.active .badge{border-color:transparent;background:var(--canvas);color:var(--ink)}
+.page-heading{display:flex;align-items:center;justify-content:space-between;gap:24px;margin-bottom:22px}.eyebrow{font-size:10px;letter-spacing:1.8px;color:var(--muted);font-weight:600;margin-bottom:5px}.page-heading h2{font-size:28px;font-weight:600;letter-spacing:-.9px;line-height:1.25}.page-heading .muted{font-size:13px;margin-top:8px}.local-status{display:flex;align-items:center;gap:7px;font-size:11px;color:var(--muted);white-space:nowrap}.local-status>span{width:6px;height:6px;border-radius:50%;background:var(--green)}
+body input,body textarea,body select{background:var(--surface);color:var(--ink);border:1px solid var(--line);border-radius:8px;min-height:38px;padding:8px 10px;max-width:100%}body input[type=checkbox],body input[type=radio]{min-height:18px;width:18px;height:18px;accent-color:#a07810}body input::placeholder,body textarea::placeholder{color:var(--muted);opacity:1}body :focus-visible{outline:3px solid var(--accent);outline-offset:3px}main:focus{outline:none}body summary{padding:7px 0}body summary:before{content:'+';display:inline-block;width:20px;color:var(--muted)}body details[open]>summary:before{content:'−'}
+body .bg-zinc-50,body .bg-zinc-100{background:var(--subtle)}body .border-zinc-100{border-color:var(--line)}body .bg-zinc-900{background:#171b17;color:#ecefe6}body .text-zinc-100{color:#ecefe6}body .text-zinc-900{color:var(--ink)}
+[data-theme=dark] .bg-green-50{background:#263d30}[data-theme=dark] .text-green-700{color:#a6d6b5}[data-theme=dark] .border-green-200{border-color:#42634d}[data-theme=dark] .bg-red-50{background:#482d2b}[data-theme=dark] .text-red-700{color:#ffb4aa}[data-theme=dark] .border-red-200{border-color:#72433b}[data-theme=dark] .bg-amber-50{background:#433920}[data-theme=dark] .text-amber-700,[data-theme=dark] .text-amber-800{color:#edcd7c}[data-theme=dark] .border-amber-200{border-color:#66562d}
+.health-row{display:flex;justify-content:space-between;gap:20px;padding:9px 0;border-bottom:1px solid var(--line);font-size:12px}.health-row span:last-child{text-align:right;overflow-wrap:anywhere;color:var(--ink)}table th{font-size:11px;font-weight:600}table td{padding:12px 8px}#view>.card.p-8{padding:50px 24px;border-style:dashed}#view h3{letter-spacing:-.2px}#toast{z-index:50;max-width:calc(100vw - 32px)}.skip-link{position:absolute;left:16px;top:-100px;padding:10px;background:var(--surface);color:var(--ink);z-index:100}.skip-link:focus{top:10px}
+@media(max-width:760px){.app-shell{padding:20px 16px 40px!important}.metrics{grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}.metric{padding:15px}.metric strong{font-size:28px}#tabs{flex-wrap:nowrap;overflow-x:auto}.page-heading{align-items:flex-start}.local-status{display:none}.page-heading h2{font-size:25px}header>div:last-child{width:100%}header .btn{flex:1}#sub{max-width:100%;line-height:1.8}#view .min-w-\[220px\]{min-width:0}#view .flex{min-width:0}.health-row{flex-wrap:wrap;gap:4px}.health-row span:last-child{text-align:left}}
+@media(prefers-reduced-motion:reduce){*,*:before,*:after{scroll-behavior:auto!important;transition:none!important}}
+
+</style>
 </head>
 <body class="bg-zinc-50 text-zinc-900">
-<div class="max-w-6xl mx-auto px-4 py-5">
+<a class="skip-link" href="#view">Skip to content</a>
+<div class="app-shell max-w-6xl mx-auto px-4 py-5">
   <header class="flex flex-wrap items-center justify-between gap-3 mb-4">
     <div>
-      <h1 class="text-xl font-semibold tracking-tight">Mustard Seed <span class="text-sm font-normal muted">- small seeds, planted every day</span></h1>
+      <div class="brand"><svg width="44" height="44" aria-hidden="true" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 48"><rect width="48" height="48" rx="14" fill="#e4b83e"/><path d="M24 32V20" fill="none" stroke="#35452e" stroke-width="2.5" stroke-linecap="round"/><path d="M24 24C15 25 12 19 14 13c8 0 12 4 10 11Z" fill="#35452e"/><path d="M24 20c0-7 5-10 11-9 0 6-4 10-11 9Z" fill="#526941"/><ellipse cx="24" cy="34" rx="5" ry="4" fill="#846018"/></svg><div><h1>Mustard Seed</h1><p class="brand-caption">Small seeds. New possibilities.</p></div></div>
       <p class="text-sm muted" id="sub">Loading...</p>
     </div>
     <div class="flex gap-2 flex-wrap">
+      <button id="theme-toggle" class="btn theme-toggle" onclick="toggleTheme()" aria-label="Toggle dark mode" aria-pressed="false">Dark mode</button>
       <button class="btn" onclick="run('all')">Find + prepare now</button>
       <button class="btn btn-primary" onclick="run('submit')">Submit approved</button>
     </div>
   </header>
 
-  <nav class="flex flex-wrap gap-1 bg-zinc-100 p-1 rounded-lg mb-4" id="tabs"></nav>
-  <main id="view"></main>
+  <section id="metrics" class="metrics" aria-label="Application progress"></section>
+  <nav class="flex flex-wrap gap-1 bg-zinc-100 p-1 rounded-lg mb-4" id="tabs" aria-label="Main navigation"></nav>
+  <div class="page-heading"><div><p class="eyebrow">YOUR NEXT CHAPTER</p><h2 id="page-title">Review</h2><p id="page-description" class="muted"></p></div><span class="local-status"><span></span> Local workspace</span></div>
+  <main id="view" tabindex="-1" aria-busy="true"></main>
 </div>
 
-<div id="toast" class="fixed bottom-4 right-4 hidden card px-4 py-3 text-sm shadow-lg"></div>
+<div role="status" aria-live="polite" id="toast" class="fixed bottom-4 right-4 hidden card px-4 py-3 text-sm shadow-lg"></div>
 
 <script>
 const TABS=[["add","Add a job"],["review","Review"],["needs","Needs you"],["applied","Applied"],["referrals","Referrals"],["found","All found"],["boards","Boards"],["run","Runs"],["settings","Settings"]];
@@ -47,13 +197,22 @@ let PREFILL=null;{const h=location.hash.slice(1);if(h.startsWith("add&")){const 
 let tab=(location.hash.slice(1)||"review").split("&")[0], OV=null, HEALTH=null, CURRUN=null;
 const $=s=>document.querySelector(s);
 const esc=s=>(s==null?"":String(s)).replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
-const api=async(p,b)=>{const r=await fetch(p,b?{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(b)}:{});return r.json()};
+const api=async(p,b)=>{const r=await fetch(p,b?{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(b)}:{});let data;try{data=await r.json()}catch{throw new Error("The server returned an unreadable response.")}if(!r.ok||data?.ok===false)throw new Error(data.error||`Request failed (${r.status})`);return data};
+const windowApi=api;
+window.addEventListener("unhandledrejection",event=>{event.preventDefault();toast(event.reason?.message||"Something went wrong. Please try again.")});
+function syncTheme(){const dark=document.documentElement.dataset.theme==='dark';$("#theme-toggle").textContent=dark?'Light mode':'Dark mode';$("#theme-toggle").setAttribute('aria-pressed',String(dark))}
+function toggleTheme(){const theme=document.documentElement.dataset.theme==='dark'?'light':'dark';document.documentElement.dataset.theme=theme;try{localStorage.setItem('mustard-theme',theme)}catch{}syncTheme()}
+syncTheme();
+const DESCRIPTIONS={add:"Bring an opportunity. Build your next step.",review:"A little attention here can open a new door. Review each role before approving.",needs:"These applications need your personal touch.",applied:"Every application is a seed planted. Keep track of your progress.",referrals:"Start a conversation with the people behind the opportunity.",found:"Explore the roles discovered for you and see how they fit.",boards:"See where your opportunities come from and which sources need attention.",run:"Start a task and follow its progress here.",settings:"Make this workspace yours. Manage your profile, resumes and connections."};
+function drawHeading(){$("#page-title").textContent=TABS.find(([k])=>k===tab)?.[1]||'Review';$("#page-description").textContent=DESCRIPTIONS[tab]||''}
 function toast(t){const e=$("#toast");e.textContent=t;e.classList.remove("hidden");clearTimeout(e._t);e._t=setTimeout(()=>e.classList.add("hidden"),3500)}
 function drawTabs(){$("#tabs").innerHTML=TABS.map(([k,l])=>{let n="";if(OV){const c=OV.counts;n=k=="review"?(c.ready||0):k=="needs"?(c.needs_you||0):k=="applied"?(c.submitted||0):k=="referrals"?OV.contacts_pending:"";}
- return `<div class="tab ${tab==k?"active":""}" onclick="go('${k}')">${l}${n!==""&&n!==undefined?` <span class="badge ml-1">${n}</span>`:""}</div>`}).join("")}
-function go(k){tab=k;location.hash=k;drawTabs();render()}
+ return `<button type="button" class="tab ${tab==k?"active":""}" aria-current="${tab==k?"page":"false"}" onclick="go('${k}')">${l}${n!==""&&n!==undefined?` <span class="badge ml-1">${n}</span>`:""}</button>`}).join("")}
+function go(k){tab=TABS.some(([id])=>id===k)?k:'review';if(location.hash!=='#'+tab)location.hash=tab;drawTabs();drawHeading();render()}
+window.addEventListener('hashchange',()=>{const next=location.hash.slice(1);if(next!==tab)go(next)});
 async function refresh(){OV=await api("/api/overview");const c=OV.counts;
- $("#sub").textContent=`${c.ready||0} ready to review - ${c.approved||0} approved - ${c.needs_you||0} need you - ${OV.applied_week} applied this week - ${OV.contacts_pending} referral notes to send`;drawTabs()}
+ $("#sub").textContent=`${c.ready||0} ready to review - ${c.approved||0} approved - ${c.needs_you||0} need you - ${OV.applied_week} applied this week - ${OV.contacts_pending} referral notes to send`;drawTabs();
+ $("#metrics").innerHTML=[["Ready to review",c.ready||0,"review"],["Need your touch",c.needs_you||0,"needs"],["Applied this week",OV.applied_week||0,"applied"],["Referral notes",OV.contacts_pending||0,"referrals"]].map(([label,n,key])=>`<button class="metric" onclick="go('${key}')"><span>${label}</span><strong>${n}</strong><span class="metric-link">${key==='review'?'Take the next step':'View details'} <span aria-hidden="true">↗</span></span></button>`).join("")}
 async function run(job,arg){const r=await api("/api/run",{job,arg});if(!r.ok){toast(r.error);return}CURRUN=r.id;toast("Started: "+job);go("run")}
 
 function geoBadge(j){if(j.geo_ok==1)return `<span class="badge bg-green-50 text-green-700 border-green-200" title="${esc(j.geo_reason)}">Open to SA</span>`;
@@ -62,10 +221,10 @@ function geoBadge(j){if(j.geo_ok==1)return `<span class="badge bg-green-50 text-
 const fileLink=(p,l)=>p?`<a class="btn" target="_blank" href="/file?path=${encodeURIComponent(p)}">${l}</a>`:"";
 function contactsHTML(cs){if(!cs||!cs.length)return `<p class="text-sm muted">No contacts found yet (SearXNG off or company too small to show up). Try "Find again" after a retry.</p>`;
  return cs.map(c=>`<div class="flex flex-wrap items-start gap-2 py-2 border-t border-zinc-100">
-  <div class="min-w-[220px] flex-1"><div class="text-sm font-medium">${esc(c.name)} <span class="badge ml-1">${c.kind.replace("_"," ")}</span>${c.sent?' <span class="badge bg-green-50 text-green-700">sent</span>':""}</div>
+  <div class="min-w-[220px] flex-1"><div class="text-sm font-medium">${esc(c.name)} <span class="badge ml-1">${esc((c.kind||"contact").replace("_"," "))}</span>${c.sent?' <span class="badge bg-green-50 text-green-700">sent</span>':""}</div>
   <div class="text-xs muted">${esc(c.headline||"")}</div><div class="text-xs mt-1 bg-zinc-50 rounded p-2">${esc(c.note)}</div></div>
-  <div class="flex gap-1 flex-wrap"><button class="btn" onclick='copyOpen(${JSON.stringify(c.note)},${JSON.stringify(c.url)})'>Copy note + open profile</button>
-  <button class="btn" onclick='copy(${JSON.stringify(c.followup||"")})'>Copy follow-up</button>
+  <div class="flex gap-1 flex-wrap"><button class="btn" onclick='copyOpen(${esc(JSON.stringify(c.note)).replace(/'/g,'&#39;')},${esc(JSON.stringify(c.url)).replace(/'/g,'&#39;')})'>Copy note + open profile</button>
+  <button class="btn" onclick='copy(${esc(JSON.stringify(c.followup||"")).replace(/'/g,"&#39;")})'>Copy follow-up</button>
   ${c.sent?"":`<button class="btn" onclick="sent(${c.id})">Mark sent</button>`}</div></div>`).join("")}
 async function copy(t){await navigator.clipboard.writeText(t);toast("Copied")}
 async function copyOpen(t,u){await navigator.clipboard.writeText(t);window.open(u,"_blank");toast("Note copied - on LinkedIn press Connect > Add a note > paste")}
@@ -111,9 +270,9 @@ function manualJob(j){const ed=j.edits_log||{};const cl=ed.cover_letter_pdf;cons
   ${j.status=="ready"?`<button class="btn btn-green" onclick="act('${j.id}','done')">I submitted it</button>`:""}
   ${["new","filtered","failed","skipped"].includes(j.status)?`<button class="btn" onclick="mPrep('${j.id}')">Prepare</button>`:""}</div></div>
   ${j.status=="ready"?`<details class="mt-2"><summary class="text-xs font-medium">Cover letter text, interview prep, referral notes</summary>${jobCard(j,"applied")}</details>`:""}</div>`}
-async function analyse(){const b={};["url","title","company","location","salary","text"].forEach(k=>b[k]=$("#m_"+k).value);
+async function analyse(){const version=renderVersion;const b={};["url","title","company","location","salary","text"].forEach(k=>b[k]=$("#m_"+k).value);
  $("#mres").innerHTML=`<div class="card p-4 text-sm muted">Reading the job and weighing it against your resumes... (up to 30s with the AI odds)</div>`;
- const r=await api("/api/manual/analyse",b);if(!r.ok){$("#mres").innerHTML=`<div class="card p-4 text-sm text-red-700">${esc(r.error)}</div>`;return}LAST=r;drawResult()}
+ const r=await api("/api/manual/analyse",b);if(version!==renderVersion)return;if(!r.ok){$("#mres").innerHTML=`<div class="card p-4 text-sm text-red-700">${esc(r.error)}</div>`;return}LAST=r;drawResult()}
 function drawResult(){const r=LAST,o=r.odds||{};const fams=r.families;
  const opt=(r.options||[]).map(x=>`<tr class="border-t border-zinc-100"><td class="py-1"><label><input type="radio" name="pick" value="${x.family}|${x.tier}" ${x.family==r.pick.family&&x.tier==r.pick.tier?"checked":""}> ${esc(x.family)} - ${esc(x.tier)}</label></td><td>${Math.round(x.score)}</td><td class="text-xs muted">${esc((x.reasons||[])[0]||"")}</td></tr>`).join("");
  const oddsCol=o.odds=="high"?"text-green-700":o.odds=="low"?"text-red-700":"text-amber-700";
@@ -128,9 +287,14 @@ function drawResult(){const r=LAST,o=r.odds||{};const fams=r.families;
   <button class="btn btn-primary mt-3" onclick="mPrep('${r.id}',true)">Prepare resume + cover letter + referrals</button>
   <p class="text-xs muted mt-2">It lands in Notion as "Waiting for a referral" with PREPARED in the Text column. Press "I submitted it" below once you apply and Notion moves it to Applied with today's date.</p></div>`}
 async function mPrep(id,fromForm){const b={id};if(fromForm){const p=(document.querySelector('input[name=pick]:checked')||{}).value;if(p){[b.family,b.tier]=p.split("|")}b.note=$("#m_note").value}
- const r=await api("/api/manual/prepare",b);if(!r.ok){toast(r.error);return}CURRUN=r.id;toast("Preparing - takes 1-3 minutes. Files appear below.");setTimeout(render,4000)}
+ const r=await api("/api/manual/prepare",b);if(!r.ok){toast(r.error);return}CURRUN=r.id;toast("Preparing - takes 1-3 minutes. Files appear below.");setTimeout(()=>{if(tab==="add")render()},4000)}
 
-async function render(){const v=$("#view");
+let renderVersion=0;
+async function render(){const version=++renderVersion;drawHeading();const v=$("#view");v.setAttribute('aria-busy','true');v.innerHTML='<div class="card p-8 muted" role="status">Loading your workspace…</div>';
+ try{await renderView(version)}catch(error){if(version===renderVersion)v.innerHTML=`<div class="card p-8" role="alert"><h3>Could not load this page</h3><p class="muted">${esc(error.message)}</p><button class="btn mt-3" onclick="render()">Try again</button></div>`}
+ finally{if(version===renderVersion){v.setAttribute('aria-busy','false');v.querySelectorAll('input,textarea,select').forEach(input=>{if(!input.labels?.length&&!input.hasAttribute('aria-label'))input.setAttribute('aria-label',input.placeholder||input.id||'Choose an option')})}}}
+async function renderView(version){const v=$("#view");
+ const api=async(...args)=>{const result=await windowApi(...args);if(version!==renderVersion)throw new Error('Navigation changed');return result};
  if(tab=="add"){const mine=await api("/api/jobs?status=all&board=Manual");
   v.innerHTML=`<div class="grid md:grid-cols-5 gap-3"><div class="card p-4 text-sm md:col-span-3">
    <h3 class="font-semibold">Add a job you found yourself</h3><p class="text-xs muted mb-2">Paste the link and/or the whole job text. Works for boards the engine can't read, WhatsApp/LinkedIn posts and recruiter emails.</p>
@@ -155,27 +319,21 @@ async function render(){const v=$("#view");
   v.innerHTML=`<p class="text-sm muted mb-2">Every matching role found, including filtered ones, so you can see why something was dropped.</p>`+jobs.map(j=>`<div class="card p-3 mb-2 text-sm"><div class="flex justify-between gap-2"><div><b>${esc(j.title)}</b> - ${esc(j.company)} <span class="muted">(${esc(j.board)})</span><div class="muted text-xs">${esc(j.status)}: ${esc(j.geo_reason||"")} | fit ${Math.round(j.score||0)} | ${esc(j.score_reasons||"")}</div></div><div class="flex gap-1"><a class="btn" target="_blank" href="${esc(j.url)}">Open</a><button class="btn" onclick="prep('${j.id}')">Prepare</button></div></div></div>`).join("")}
  else if(tab=="referrals"){const cs=await api("/api/contacts");
   v.innerHTML=`<div class="card p-4"><p class="text-sm muted mb-2">Send 10-20 a day from LinkedIn. Recruiters first, then hiring managers. Paste the note, press Send, then Mark sent here - it updates "connections sent" in Notion.</p>${cs.map(c=>`<div class="py-1"><div class="text-xs muted mt-2">${esc(c.company)} - ${esc(c.title||"tracker row")}</div>${contactsHTML([c])}</div>`).join("")||"<p class='muted'>None yet.</p>"}</div>`}
- else if(tab=="boards"){await refresh();
+ else if(tab=="boards"){await refresh();if(version!==renderVersion)return;
   v.innerHTML=`<div class="card overflow-x-auto"><table class="w-full text-sm"><thead class="text-left muted"><tr><th class="p-3">Board</th><th>Last run</th><th>Fetched</th><th>Matched</th><th>New</th><th>All-time new</th><th>Status</th><th></th></tr></thead><tbody>${OV.boards.map(b=>`<tr class="border-t border-zinc-100"><td class="p-3 font-medium">${esc(b.board)}</td>
    <td>${b.never_run?"never":esc((b.started||"").replace("T"," ").slice(0,16))}</td><td>${b.fetched??""}</td><td>${b.matched??""}</td><td>${b.new??""}</td><td>${b.totals?b.totals.new:""}</td>
    <td>${b.never_run?'<span class="badge">not run</span>':b.ok?(b.fetched?'<span class="badge bg-green-50 text-green-700">ok</span>':'<span class="badge bg-amber-50 text-amber-700" title="Ran but saw 0 postings - selector or login problem">0 seen</span>'):`<span class="badge bg-red-50 text-red-700" title="${esc(b.error)}">error</span>`}</td>
-   <td><button class="btn" onclick="run('board',${JSON.stringify(b.board)})">Run</button></td></tr>`).join("")}</tbody></table></div>
+   <td><button class="btn" onclick="run('board',${esc(JSON.stringify(b.board))})">Run</button></td></tr>`).join("")}</tbody></table></div>
    <div class="card p-4 mt-3 text-sm"><b>Boards that need a sign-in:</b> press <button class="btn" onclick="run('login','https://wellfound.com/login')">Open login browser</button> and sign in to Wellfound / We Work Remotely / Indeed once. The engine keeps that sign-in in its own profile. It never types your passwords.
    <div class="mt-3"><b>Apply once, not scraped:</b> ${OV.not_scraped.map(esc).join(", ")}</div></div>`}
  else if(tab=="run"){const runs=await api("/api/runs");
   v.innerHTML=`<div class="flex flex-wrap gap-2 mb-3"><button class="btn" onclick="run('scan')">Scan boards</button><button class="btn" onclick="run('prepare')">Prepare best new roles</button><button class="btn" onclick="run('submit')">Submit approved</button><button class="btn" onclick="run('backfill')">Backfill referrals for tracker rows</button></div>
   <div class="card p-3 mb-3 text-sm">${runs.map(r=>`<div class="flex justify-between py-1 border-b border-zinc-100"><span>${esc(r.job)} ${esc(r.arg||"")} - ${esc(r.started.replace("T"," "))}</span><span><span class="badge">${esc(r.status)}</span> <button class="btn btn-ghost" onclick="CURRUN='${r.id}';render()">log</button></span></div>`).join("")||"<span class='muted'>No runs this session.</span>"}</div>
-  <pre id="log" class="card p-3 text-xs h-[420px] overflow-auto bg-zinc-900 text-zinc-100"></pre>`;if(CURRUN)tail(CURRUN,0)}
- else if(tab=="settings"){HEALTH=await api("/api/health?force=1");FEAT=await api("/api/features");PRE=await api("/api/presets");PROF=await api("/api/profile");const keys=await api("/api/keys");const cfg=await api("/api/config");
-  const row=(l,ok,txt)=>`<div class="flex justify-between py-1 border-b border-zinc-100"><span>${l}</span><span class="${ok?"text-green-700":"text-amber-700"}">${esc(txt)}</span></div>`;
+  <pre id="log" class="card p-3 text-xs h-[420px] overflow-auto bg-zinc-900 text-zinc-100"></pre>`;if(CURRUN)tail(CURRUN,0,version)}
+ else if(tab=="settings"){const values=await Promise.all(["features","presets","profile","keys","config"].map(k=>api("/api/"+k)));[FEAT,PRE,PROF]=values;const keys=values[3],cfg=values[4];
   v.innerHTML=`<div class="grid md:grid-cols-2 gap-3">
   <div class="card p-4 text-sm"><h3 class="font-semibold mb-2">Health</h3>
-   ${row("SearXNG (referral search)",HEALTH.searxng,HEALTH.searxng?"running":"off - start Docker + searxng; DuckDuckGo used meanwhile")}
-   ${row("Notion tracker",HEALTH.notion=="ok",HEALTH.notion)}
-   ${row("PDF export",HEALTH.pdf.indexOf("none")<0,HEALTH.pdf)}
-   ${row("Ollama (offline AI)",!!HEALTH.ollama,HEALTH.ollama?HEALTH.ollama.join(", ")||"running, no models":"not running (optional)")}
-   ${row("Masters",HEALTH.masters.length>=9,HEALTH.masters.length+" files")}
-   ${row("Resume copies saved to","1",HEALTH.resume_copies)}
+   <div id="health-status" role="status" class="muted">Checking your connections… You can edit settings while this runs.</div>
    <button class="btn mt-3" onclick="testLLM()">Test free AI providers</button><pre id="llmres" class="text-xs mt-2"></pre></div>
   <div class="card p-4 text-sm"><h3 class="font-semibold mb-2">Keys (stored only in keys.env on this PC)</h3>
    ${Object.entries(keys).map(([k,v])=>`<label class="block mt-2"><span class="text-xs muted">${k} ${v.set?"(set "+v.hint+")":"(not set)"}</span><input data-k="${k}" type="password" class="w-full mt-1" placeholder="paste to set / change"></label>`).join("")}
@@ -184,7 +342,7 @@ async function render(){const v=$("#view");
   <div class="card p-4 text-sm md:col-span-2"><h3 class="font-semibold mb-2">About you (used on applications and cover letters)</h3>
    <div class="grid md:grid-cols-3 gap-2">${Object.entries(PROF.fields).map(([k,v])=>`<label><span class="text-xs muted">${k.replace("_"," ")}</span><input data-p="${k}" value="${esc(v)}" class="w-full"></label>`).join("")}</div>
    <div class="mt-3 text-xs muted">Your asking rate per level (what you type here is what forms get - keep it honest)</div>
-   <div class="grid grid-cols-2 md:grid-cols-5 gap-2">${["J","J-M","HM","M-S","S"].map(t=>`<label><span class="text-xs muted">${t}</span><input data-r="${t}" value="${esc(PROF.rates[t]||"")}" class="w-full" placeholder="USD 1,500/month"></label>`).join("")}</div>
+   <div class="grid grid-cols-2 md:grid-cols-5 gap-2">${["J","J-M","HM","M-S","S","ONE"].map(t=>`<label><span class="text-xs muted">${t}</span><input data-r="${t}" value="${esc(PROF.rates[t]||"")}" class="w-full" placeholder="USD 1,500/month"></label>`).join("")}</div>
    <div class="grid md:grid-cols-3 gap-2 mt-3"><label class="flex items-center gap-2"><input type="checkbox" id="p_intl" ${PROF.international_only?"checked":""}> Only overseas employers (drop SA companies and SA agencies)</label>
    <label><span class="text-xs muted">Hours you can work (SA time)</span><input id="p_win" value="${esc(PROF.work_window)}" class="w-full"></label>
    <label><span class="text-xs muted">Notion tracker link (optional)</span><input id="p_notion" value="${esc(PROF.notion_database)}" class="w-full" placeholder="paste the database link"></label></div>
@@ -197,8 +355,12 @@ async function render(){const v=$("#view");
    <div class="flex gap-2 mt-3"><select id="preset">${Object.entries(PRE.presets).filter(([k])=>!PRE.families[k]).map(([k,l])=>`<option value="${k}">${esc(l)}</option>`).join("")}</select><button class="btn" onclick="addFam()">Add family</button></div>
    <div class="mt-4 font-medium">Upload a master resume (.docx)</div><div class="flex flex-wrap gap-2 mt-1"><select id="up_f" onchange="upTiers()">${Object.keys(PRE.families).map(f=>`<option>${esc(f)}</option>`).join("")}</select><select id="up_t"></select><input id="up_file" type="file" accept=".docx"><button class="btn" onclick="upMaster()">Upload</button></div>
    <p class="text-xs muted mt-1">One file per level. The engine only ever edits copies - your masters stay untouched.</p></div>
-  <div class="card p-4 text-sm md:col-span-2"><h3 class="font-semibold mb-2">config.json</h3><p class="text-xs muted mb-2">Boards, search terms, filters, your profile answers, rates per tier, schedule.</p><textarea id="cfg" class="w-full h-[480px] font-mono text-xs">${esc(cfg.text)}</textarea><button class="btn btn-primary mt-2" onclick="saveCfg()">Save config</button></div></div>`;upTiers()}
+  <div class="card p-4 text-sm md:col-span-2"><h3 class="font-semibold mb-2">config.json</h3><p class="text-xs muted mb-2">Boards, search terms, filters, your profile answers, rates per tier, schedule.</p><textarea id="cfg" class="w-full h-[480px] font-mono text-xs">${esc(cfg.text)}</textarea><button class="btn btn-primary mt-2" onclick="saveCfg()">Save config</button></div></div>`;upTiers();loadHealth(version)}
 }
+async function loadHealth(version,force=false){try{const h=await api('/api/health'+(force?'?force=1':''));if(version!==renderVersion||tab!=='settings')return;HEALTH=h;
+ const rows=[["Referral search",h.searxng?'Connected':'Browser search fallback'],["Notion tracker",h.notion],["PDF export",h.pdf],["Offline AI",h.ollama?(h.ollama.join(', ')||'No models installed'):'Not running (optional)'],["Master resumes",h.masters.length+' files'],["Output folder",h.resume_copies]];
+ $("#health-status").innerHTML=rows.map(([label,value])=>`<div class="health-row"><span>${esc(label)}</span><span>${esc(value)}</span></div>`).join('')+`<button class="btn mt-3" onclick="loadHealth(renderVersion,true)">Refresh connections</button>`;
+ }catch(error){if(version===renderVersion&&tab==='settings')$("#health-status").innerHTML=`<p>${esc(error.message)}</p><button class="btn mt-3" onclick="loadHealth(renderVersion,true)">Retry connection check</button>`}}
 let PROF={fields:{},rates:{}};
 async function saveProf(){const f={},r={};document.querySelectorAll("[data-p]").forEach(i=>f[i.dataset.p]=i.value);document.querySelectorAll("[data-r]").forEach(i=>{if(i.value)r[i.dataset.r]=i.value});
  const x=await api("/api/profile",{fields:f,rates:r,international_only:$("#p_intl").checked,work_window:$("#p_win").value,notion_database:$("#p_notion").value,resume_copies:$("#p_copies").value});toast(x.ok?"Saved":x.error)}
@@ -211,12 +373,12 @@ function upTiers(){const f=$("#up_f").value;$("#up_t").innerHTML=(PRE.families[f
 async function upMaster(){const f=$("#up_file").files[0];if(!f){toast("Choose a .docx first");return}const buf=new Uint8Array(await f.arrayBuffer());let bin="";for(let i=0;i<buf.length;i+=32768)bin+=String.fromCharCode.apply(null,buf.subarray(i,i+32768));
  const r=await api("/api/master/upload",{family:$("#up_f").value,tier:$("#up_t").value,data_b64:btoa(bin)});toast(r.ok?"Saved as "+r.saved:r.error);render()}
 async function approveAll(){const r=await api("/api/approve_all",{min_score:+$("#ms").value});toast(`Approved ${r.approved}`);render();refresh()}
-async function tail(id,off){if(tab!="run"||CURRUN!=id)return;const r=await api(`/api/run/${id}/log?offset=${off}`);const l=$("#log");if(!l)return;if(off==0)l.textContent="";l.textContent+=r.text;l.scrollTop=l.scrollHeight;
- if(r.status=="running")setTimeout(()=>tail(id,r.offset),1500);else{refresh()}}
-async function testLLM(){$("#llmres").textContent="testing...";$("#llmres").textContent=JSON.stringify(await api("/api/llm"),null,1)}
+async function tail(id,off,version){if(tab!="run"||CURRUN!=id||version!==renderVersion)return;const r=await api(`/api/run/${id}/log?offset=${off}`);const l=$("#log");if(!l||tab!=="run"||CURRUN!==id||version!==renderVersion)return;if(off==0)l.textContent="";l.textContent+=r.text;l.scrollTop=l.scrollHeight;
+ if(r.status=="running")setTimeout(()=>tail(id,r.offset,version),1500);else{refresh()}}
+async function testLLM(){const output=$("#llmres");output.textContent="testing...";try{output.textContent=JSON.stringify(await api("/api/llm"),null,1)}catch(error){output.textContent=error.message}}
 async function saveKeys(){const b={};document.querySelectorAll("[data-k]").forEach(i=>{if(i.value)b[i.dataset.k]=i.value});await api("/api/keys",b);toast("Saved");render()}
 async function saveCfg(){const r=await api("/api/config",{text:$("#cfg").value});toast(r.ok?"Saved":"Not saved: "+r.error)}
-refresh().then(render);setInterval(refresh,30000);
+go(tab);refresh().catch(e=>toast(e.message));setInterval(()=>refresh().catch(e=>toast(e.message)),30000);
 </script>
 </body>
 </html>
