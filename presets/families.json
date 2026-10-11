@@ -1,0 +1,150 @@
+{
+  "bookkeeping": {
+    "label": "Accounting & bookkeeping",
+    "tiers": [
+      "J",
+      "HM",
+      "M-S"
+    ],
+    "headline": "Bookkeeper | Accounts & Reconciliations",
+    "title_patterns": [
+      "\\bbook-?keep",
+      "\\baccount(s|ing)? (assistant|clerk|associate|specialist|executive)",
+      "\\baccountant\\b",
+      "\\baccounts (payable|receivable)\\b",
+      "\\bpayroll\\b",
+      "\\bxero\\b",
+      "\\bquickbooks\\b",
+      "\\breconcil",
+      "\\bbilling (specialist|coordinator)\\b",
+      "\\bfinance (assistant|associate|admin)"
+    ],
+    "core": "\\b(xero|quickbooks|sage|reconcil|ledger|accounts (payable|receivable)|payroll|invoice|bookkeep|month[- ]end|vat|gaap|ifrs|bank feed)",
+    "queries": [
+      "bookkeeper",
+      "accounts assistant",
+      "accounts payable",
+      "payroll administrator"
+    ]
+  },
+  "ecommerce": {
+    "label": "E-commerce management",
+    "tiers": [
+      "J",
+      "HM",
+      "M-S"
+    ],
+    "headline": "E-commerce Manager | Shopify & Marketplaces",
+    "title_patterns": [
+      "\\be-?commerce\\b",
+      "\\bshopify (store|admin|manager|specialist|assistant)",
+      "\\bamazon (account|marketplace|seller|listing|ppc)",
+      "\\bmarketplace (manager|specialist|coordinator)",
+      "\\bstore manager\\b.*\\bonline",
+      "\\bproduct listing",
+      "\\bonline store\\b",
+      "\\bdtc\\b"
+    ],
+    "core": "\\b(shopify|woocommerce|amazon|seller central|etsy|takealot|listing|inventory|fulfil|marketplace|conversion|product (catalog|catalogue|feed)|klaviyo)",
+    "queries": [
+      "ecommerce manager",
+      "ecommerce specialist",
+      "shopify store manager",
+      "amazon account manager"
+    ]
+  },
+  "admin": {
+    "label": "Admin & virtual assistant",
+    "tiers": [
+      "J",
+      "J-M",
+      "HM"
+    ],
+    "headline": "Virtual Assistant | Admin & Customer Support",
+    "title_patterns": [
+      "\\bvirtual assistant\\b",
+      "\\bexecutive assistant\\b",
+      "\\badmin(istrative)? (assistant|coordinator|support|officer)",
+      "\\bpersonal assistant\\b",
+      "\\bdata entry\\b",
+      "\\bcustomer (support|service|success|care) (rep|representative|agent|associate|specialist)",
+      "\\boperations (assistant|coordinator)\\b",
+      "\\bappointment setter\\b"
+    ],
+    "core": "\\b(customer|client|admin|schedul|email|calendar|support|data entry|crm|e-?commerce|order|inbox|virtual assistant)",
+    "queries": [
+      "virtual assistant",
+      "executive assistant",
+      "customer support",
+      "data entry"
+    ]
+  },
+  "sales": {
+    "label": "Sales (SDR / BDR / account exec)",
+    "tiers": [
+      "J",
+      "HM",
+      "M-S"
+    ],
+    "headline": "Sales Development | Outbound & Pipeline",
+    "title_patterns": [
+      "\\bsdr\\b",
+      "\\bbdr\\b",
+      "\\bsales development\\b",
+      "\\bbusiness development (rep|representative|associate|executive)",
+      "\\baccount executive\\b",
+      "\\binside sales\\b",
+      "\\bsales (rep|representative|associate|executive|consultant)\\b",
+      "\\blead generation\\b",
+      "\\bappointment setter\\b",
+      "\\bclosers?\\b"
+    ],
+    "core": "\\b(quota|pipeline|outbound|cold (call|email)|prospect|hubspot|salesforce|crm|lead|close|demo|commission|b2b)",
+    "queries": [
+      "sales development representative",
+      "business development representative",
+      "account executive",
+      "appointment setter"
+    ]
+  },
+  "dev": {
+    "label": "Web developer",
+    "tiers": [
+      "J",
+      "J-M",
+      "HM",
+      "M-S",
+      "S"
+    ],
+    "headline": "Full-Stack Developer",
+    "title_patterns": [
+      "\\b(front[- ]?end|full[- ]?stack|web|shopify|wordpress|react|javascript|next\\.?js)\\b.*\\b(developer|engineer)\\b"
+    ],
+    "core": "\\b(react|next\\.?js|shopify|liquid|javascript|typescript|node(\\.?js)?|wordpress|webflow|front[- ]?end|html|css|tailwind)\\b",
+    "queries": [
+      "shopify developer",
+      "frontend developer",
+      "full stack developer",
+      "react developer",
+      "web developer"
+    ]
+  },
+  "design": {
+    "label": "UX/UI designer",
+    "tiers": [
+      "J",
+      "HM",
+      "M-S"
+    ],
+    "headline": "UX/UI Designer | Figma",
+    "title_patterns": [
+      "\\b(ux|ui|product|web) ?/?(ux|ui)? designer\\b",
+      "\\bfigma\\b"
+    ],
+    "core": "\\b(figma|ux|ui|wireframe|prototyp|design system|adobe)\\b",
+    "queries": [
+      "ui ux designer",
+      "product designer"
+    ]
+  }
+}

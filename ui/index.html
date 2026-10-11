@@ -1,0 +1,222 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Mustard Seed</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<style>
+  body{font-family:Inter,ui-sans-serif,system-ui,Segoe UI,sans-serif}
+  .btn{display:inline-flex;align-items:center;gap:.35rem;border-radius:.5rem;padding:.4rem .75rem;font-size:.82rem;font-weight:500;border:1px solid #e4e4e7;background:#fff;color:#18181b;cursor:pointer;transition:background .15s}
+  .btn:hover{background:#f4f4f5}
+  .btn-primary{background:#18181b;color:#fff;border-color:#18181b}.btn-primary:hover{background:#27272a}
+  .btn-green{background:#16a34a;color:#fff;border-color:#16a34a}.btn-green:hover{background:#15803d}
+  .btn-ghost{border-color:transparent}
+  .card{background:#fff;border:1px solid #e4e4e7;border-radius:.75rem}
+  .badge{display:inline-flex;align-items:center;border-radius:9999px;padding:.08rem .55rem;font-size:.72rem;font-weight:600;border:1px solid #e4e4e7}
+  .tab{padding:.45rem .9rem;border-radius:.5rem;font-size:.85rem;font-weight:500;color:#52525b;cursor:pointer}
+  .tab.active{background:#fff;color:#18181b;box-shadow:0 1px 2px rgba(0,0,0,.08)}
+  details>summary{cursor:pointer;list-style:none}details>summary::-webkit-details-marker{display:none}
+  .muted{color:#71717a}
+  pre{white-space:pre-wrap;word-break:break-word}
+  input,textarea,select{border:1px solid #e4e4e7;border-radius:.5rem;padding:.4rem .6rem;font-size:.85rem}
+</style>
+</head>
+<body class="bg-zinc-50 text-zinc-900">
+<div class="max-w-6xl mx-auto px-4 py-5">
+  <header class="flex flex-wrap items-center justify-between gap-3 mb-4">
+    <div>
+      <h1 class="text-xl font-semibold tracking-tight">Mustard Seed <span class="text-sm font-normal muted">- small seeds, planted every day</span></h1>
+      <p class="text-sm muted" id="sub">Loading...</p>
+    </div>
+    <div class="flex gap-2 flex-wrap">
+      <button class="btn" onclick="run('all')">Find + prepare now</button>
+      <button class="btn btn-primary" onclick="run('submit')">Submit approved</button>
+    </div>
+  </header>
+
+  <nav class="flex flex-wrap gap-1 bg-zinc-100 p-1 rounded-lg mb-4" id="tabs"></nav>
+  <main id="view"></main>
+</div>
+
+<div id="toast" class="fixed bottom-4 right-4 hidden card px-4 py-3 text-sm shadow-lg"></div>
+
+<script>
+const TABS=[["add","Add a job"],["review","Review"],["needs","Needs you"],["applied","Applied"],["referrals","Referrals"],["found","All found"],["boards","Boards"],["run","Runs"],["settings","Settings"]];
+let PREFILL=null;{const h=location.hash.slice(1);if(h.startsWith("add&")){const p=new URLSearchParams(h.slice(4));PREFILL={url:p.get("u")||"",text:p.get("t")||""};history.replaceState(null,"","#add")}}
+let tab=(location.hash.slice(1)||"review").split("&")[0], OV=null, HEALTH=null, CURRUN=null;
+const $=s=>document.querySelector(s);
+const esc=s=>(s==null?"":String(s)).replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
+const api=async(p,b)=>{const r=await fetch(p,b?{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(b)}:{});return r.json()};
+function toast(t){const e=$("#toast");e.textContent=t;e.classList.remove("hidden");clearTimeout(e._t);e._t=setTimeout(()=>e.classList.add("hidden"),3500)}
+function drawTabs(){$("#tabs").innerHTML=TABS.map(([k,l])=>{let n="";if(OV){const c=OV.counts;n=k=="review"?(c.ready||0):k=="needs"?(c.needs_you||0):k=="applied"?(c.submitted||0):k=="referrals"?OV.contacts_pending:"";}
+ return `<div class="tab ${tab==k?"active":""}" onclick="go('${k}')">${l}${n!==""&&n!==undefined?` <span class="badge ml-1">${n}</span>`:""}</div>`}).join("")}
+function go(k){tab=k;location.hash=k;drawTabs();render()}
+async function refresh(){OV=await api("/api/overview");const c=OV.counts;
+ $("#sub").textContent=`${c.ready||0} ready to review - ${c.approved||0} approved - ${c.needs_you||0} need you - ${OV.applied_week} applied this week - ${OV.contacts_pending} referral notes to send`;drawTabs()}
+async function run(job,arg){const r=await api("/api/run",{job,arg});if(!r.ok){toast(r.error);return}CURRUN=r.id;toast("Started: "+job);go("run")}
+
+function geoBadge(j){if(j.geo_ok==1)return `<span class="badge bg-green-50 text-green-700 border-green-200" title="${esc(j.geo_reason)}">Open to SA</span>`;
+ if(j.geo_ok==0)return `<span class="badge bg-red-50 text-red-700 border-red-200" title="${esc(j.geo_reason)}">Not open to SA</span>`;
+ return `<span class="badge bg-amber-50 text-amber-700 border-amber-200" title="${esc(j.geo_reason)}">Location unclear</span>`}
+const fileLink=(p,l)=>p?`<a class="btn" target="_blank" href="/file?path=${encodeURIComponent(p)}">${l}</a>`:"";
+function contactsHTML(cs){if(!cs||!cs.length)return `<p class="text-sm muted">No contacts found yet (SearXNG off or company too small to show up). Try "Find again" after a retry.</p>`;
+ return cs.map(c=>`<div class="flex flex-wrap items-start gap-2 py-2 border-t border-zinc-100">
+  <div class="min-w-[220px] flex-1"><div class="text-sm font-medium">${esc(c.name)} <span class="badge ml-1">${c.kind.replace("_"," ")}</span>${c.sent?' <span class="badge bg-green-50 text-green-700">sent</span>':""}</div>
+  <div class="text-xs muted">${esc(c.headline||"")}</div><div class="text-xs mt-1 bg-zinc-50 rounded p-2">${esc(c.note)}</div></div>
+  <div class="flex gap-1 flex-wrap"><button class="btn" onclick='copyOpen(${JSON.stringify(c.note)},${JSON.stringify(c.url)})'>Copy note + open profile</button>
+  <button class="btn" onclick='copy(${JSON.stringify(c.followup||"")})'>Copy follow-up</button>
+  ${c.sent?"":`<button class="btn" onclick="sent(${c.id})">Mark sent</button>`}</div></div>`).join("")}
+async function copy(t){await navigator.clipboard.writeText(t);toast("Copied")}
+async function copyOpen(t,u){await navigator.clipboard.writeText(t);window.open(u,"_blank");toast("Note copied - on LinkedIn press Connect > Add a note > paste")}
+async function sent(id){await api(`/api/contact/${id}/sent`,{});toast("Marked sent");render();refresh()}
+
+function jobCard(j,mode){const ed=j.edits_log||{};const prep=j.interview_prep||[];const gaps=j.gaps||[];
+ return `<div class="card p-4 mb-3">
+ <div class="flex flex-wrap justify-between gap-2">
+  <div><div class="text-base font-semibold">${esc(j.title)}</div>
+   <div class="text-sm">${esc(j.company)} <span class="muted">- ${esc(j.location||"")}</span></div>
+   <div class="flex flex-wrap gap-1 mt-2">${geoBadge(j)}<span class="badge">${esc(j.family)} - ${esc(j.tier)}</span><span class="badge">fit ${Math.round(j.score||0)}</span>
+    <span class="badge">${esc(j.board)}</span>${j.posted_at?`<span class="badge">posted ${esc(j.posted_at)}</span>`:""}${j.salary?`<span class="badge">${esc(j.salary)}</span>`:""}
+    ${j.ai_ban?'<span class="badge bg-red-600 text-white border-red-600">Bans AI applications - write it yourself</span>':""}</div></div>
+  <div class="flex flex-wrap gap-1 items-start">
+   ${mode=="review"?`<button class="btn btn-green" onclick="act('${j.id}','approve')">Approve</button><button class="btn" onclick="retry('${j.id}')">Retry...</button><button class="btn btn-ghost" onclick="act('${j.id}','skip')">Skip</button>`:""}
+   ${mode=="needs"?`<button class="btn btn-green" onclick="act('${j.id}','done')">I submitted it</button><button class="btn" onclick="act('${j.id}','approve')">Try again</button><button class="btn" onclick="retry('${j.id}')">Re-tailor...</button><button class="btn btn-ghost" onclick="act('${j.id}','skip')">Skip</button>`:""}
+   ${mode=="found"?`<button class="btn" onclick="prep('${j.id}')">Prepare this one</button>`:""}
+  </div></div>
+ ${j.status_note?`<p class="text-sm mt-2 ${mode=="needs"?"text-amber-700":"muted"}">${esc(j.status_note)}</p>`:""}
+ <div class="flex flex-wrap gap-1 mt-3"><a class="btn" target="_blank" href="${esc(j.url)}">Posting</a>${j.apply_url&&j.apply_url!=j.url?`<a class="btn" target="_blank" href="${esc(j.apply_url)}">Apply page</a>`:""}
+  ${fileLink(j.resume_pdf,"Resume PDF")}${j.resume_docx?`<button class="btn" onclick="openFolder('${encodeURIComponent(j.resume_docx)}')">Show DOCX</button>`:""}</div>
+ <details class="mt-3"><summary class="text-sm font-medium">Cover letter</summary><pre class="text-sm mt-2 bg-zinc-50 p-3 rounded">${esc(j.cover_letter||"(none)")}</pre></details>
+ <details class="mt-2"><summary class="text-sm font-medium">How to walk into the interview (${prep.length})</summary><ul class="list-disc ml-5 text-sm mt-2">${prep.map(x=>`<li>${esc(x)}</li>`).join("")}</ul>
+  ${gaps.length?`<div class="text-sm mt-2 font-medium">Asked for, not on your resume:</div><ul class="list-disc ml-5 text-sm">${gaps.map(x=>`<li>${esc(x)}</li>`).join("")}</ul>`:""}</details>
+ <details class="mt-2"><summary class="text-sm font-medium">What changed in the resume (${(ed.applied||[]).length} edits, ${(ed.rejected||[]).length} blocked) - ${esc(j.llm_used||"")}</summary>
+  <div class="text-xs mt-2 space-y-2">${(ed.applied||[]).map(e=>`<div><div class="muted line-through">${esc(e.old)}</div><div>${esc(e.new)}</div></div>`).join("")}
+  ${(ed.rejected||[]).map(e=>`<div class="text-red-700">Blocked (${esc(e.why)}): ${esc(e.text)}</div>`).join("")}<div class="muted">Master used: ${esc(ed.master||"")}</div></div></details>
+ <details class="mt-2" ${mode=="applied"?"open":""}><summary class="text-sm font-medium">Referral contacts (${(j.contacts||[]).length})</summary><div class="mt-2">${contactsHTML(j.contacts)}</div></details>
+ <details class="mt-2"><summary class="text-sm font-medium">Job description</summary><pre class="text-xs mt-2 muted">${esc(j.description)}</pre></details>
+ </div>`}
+async function act(id,a,note){await api(`/api/job/${id}/action`,{action:a,note});toast(a=="approve"?"Approved - press Submit approved when ready":a);render();refresh()}
+function retry(id){const n=prompt("What should change? (e.g. 'lean on Shopify more', 'use the admin resume', 'shorter cover letter')");if(n!==null)act(id,"retry",n)}
+async function prep(id){await run("prepare",id)}
+async function openFolder(p){await fetch("/open-folder?path="+p)}
+
+const BOOKMARKLET=`javascript:(()=>{const s=String(getSelection())||document.body.innerText;window.open('http://localhost:8766/#add&u='+encodeURIComponent(location.href)+'&t='+encodeURIComponent(s.slice(0,8000)))})()`;
+let LAST=null;
+function manualJob(j){const ed=j.edits_log||{};const cl=ed.cover_letter_pdf;const cld=cl?cl.replace(/\.pdf$/i,".docx"):null;
+ const st=j.status=="ready"?'<span class="badge bg-green-50 text-green-700">files ready</span>':j.status=="submitted"?'<span class="badge bg-zinc-900 text-white">applied</span>':`<span class="badge">${esc(j.status)}</span>`;
+ return `<div class="card p-3 mb-2 text-sm"><div class="flex flex-wrap justify-between gap-2"><div><b>${esc(j.title)}</b> - ${esc(j.company)} ${st}
+  <div class="muted text-xs">${esc(j.family)} ${esc(j.tier)} | fit ${Math.round(j.score||0)}${j.notion_page_id?" | in Notion":""}</div></div>
+  <div class="flex flex-wrap gap-1">${fileLink(j.resume_pdf,"Resume PDF")}${fileLink(j.resume_docx,"Resume DOCX")}${fileLink(cl,"Cover letter PDF")}${fileLink(cld,"Cover letter DOCX")}
+  ${j.status=="ready"?`<button class="btn btn-green" onclick="act('${j.id}','done')">I submitted it</button>`:""}
+  ${["new","filtered","failed","skipped"].includes(j.status)?`<button class="btn" onclick="mPrep('${j.id}')">Prepare</button>`:""}</div></div>
+  ${j.status=="ready"?`<details class="mt-2"><summary class="text-xs font-medium">Cover letter text, interview prep, referral notes</summary>${jobCard(j,"applied")}</details>`:""}</div>`}
+async function analyse(){const b={};["url","title","company","location","salary","text"].forEach(k=>b[k]=$("#m_"+k).value);
+ $("#mres").innerHTML=`<div class="card p-4 text-sm muted">Reading the job and weighing it against your resumes... (up to 30s with the AI odds)</div>`;
+ const r=await api("/api/manual/analyse",b);if(!r.ok){$("#mres").innerHTML=`<div class="card p-4 text-sm text-red-700">${esc(r.error)}</div>`;return}LAST=r;drawResult()}
+function drawResult(){const r=LAST,o=r.odds||{};const fams=r.families;
+ const opt=(r.options||[]).map(x=>`<tr class="border-t border-zinc-100"><td class="py-1"><label><input type="radio" name="pick" value="${x.family}|${x.tier}" ${x.family==r.pick.family&&x.tier==r.pick.tier?"checked":""}> ${esc(x.family)} - ${esc(x.tier)}</label></td><td>${Math.round(x.score)}</td><td class="text-xs muted">${esc((x.reasons||[])[0]||"")}</td></tr>`).join("");
+ const oddsCol=o.odds=="high"?"text-green-700":o.odds=="low"?"text-red-700":"text-amber-700";
+ $("#mres").innerHTML=`<div class="card p-4 text-sm"><div class="flex flex-wrap justify-between gap-2"><div><div class="text-base font-semibold">${esc(r.title)}</div><div>${esc(r.company)}</div>
+  <div class="text-xs muted mt-1">Employer: ${esc(r.employer)} | Hours: ${esc(r.timezone)}${r.new?"":" | already in your list - this updates it"}</div></div>
+  ${o.odds?`<div class="text-right"><div class="text-2xl font-semibold ${oddsCol}">${esc(o.odds)} odds</div><div class="text-xs muted">${o.match_pct??""}% match - ${esc(o.model||"")}</div></div>`:`<div class="text-xs muted">${esc(o.error||"AI odds off (no key)")}</div>`}</div>
+  ${r.warnings.length?`<div class="mt-3 p-3 rounded bg-amber-50 text-amber-800">${r.warnings.map(w=>`<div>! ${esc(w)}</div>`).join("")}</div>`:""}
+  ${o.why?`<div class="mt-3"><b>Why:</b><ul class="list-disc ml-5">${o.why.map(x=>`<li>${esc(x)}</li>`).join("")}</ul></div>`:""}
+  ${o.red_flags&&o.red_flags.length?`<div class="mt-2"><b>Red flags:</b><ul class="list-disc ml-5">${o.red_flags.map(x=>`<li>${esc(x)}</li>`).join("")}</ul></div>`:""}
+  <div class="mt-3"><b>Which resume?</b> (best first - pick another if you know better)<table class="w-full mt-1"><tbody>${opt}</tbody></table></div>
+  <label class="block mt-3"><span class="text-xs muted">Anything the resume / cover letter should lean on (optional)</span><input id="m_note" class="w-full mt-1" placeholder="${esc((o.must_mention||[]).join("; "))}"></label>
+  <button class="btn btn-primary mt-3" onclick="mPrep('${r.id}',true)">Prepare resume + cover letter + referrals</button>
+  <p class="text-xs muted mt-2">It lands in Notion as "Waiting for a referral" with PREPARED in the Text column. Press "I submitted it" below once you apply and Notion moves it to Applied with today's date.</p></div>`}
+async function mPrep(id,fromForm){const b={id};if(fromForm){const p=(document.querySelector('input[name=pick]:checked')||{}).value;if(p){[b.family,b.tier]=p.split("|")}b.note=$("#m_note").value}
+ const r=await api("/api/manual/prepare",b);if(!r.ok){toast(r.error);return}CURRUN=r.id;toast("Preparing - takes 1-3 minutes. Files appear below.");setTimeout(render,4000)}
+
+async function render(){const v=$("#view");
+ if(tab=="add"){const mine=await api("/api/jobs?status=all&board=Manual");
+  v.innerHTML=`<div class="grid md:grid-cols-5 gap-3"><div class="card p-4 text-sm md:col-span-3">
+   <h3 class="font-semibold">Add a job you found yourself</h3><p class="text-xs muted mb-2">Paste the link and/or the whole job text. Works for boards the engine can't read, WhatsApp/LinkedIn posts and recruiter emails.</p>
+   <input id="m_url" class="w-full mb-2" placeholder="Link to the job (optional if you paste the text)">
+   <div class="grid grid-cols-2 gap-2 mb-2"><input id="m_title" placeholder="Job title (optional)"><input id="m_company" placeholder="Company (optional)"><input id="m_location" placeholder="Location / time zone (optional)"><input id="m_salary" placeholder="Pay, if listed (optional)"></div>
+   <textarea id="m_text" class="w-full h-56" placeholder="Paste the full job description here"></textarea>
+   <button class="btn btn-primary mt-2" onclick="analyse()">Check my odds</button></div>
+   <div class="card p-4 text-sm md:col-span-2"><h3 class="font-semibold">One-click from any job page</h3>
+   <p class="text-xs muted mt-1">Drag this button to your bookmarks bar once:</p><a class="btn mt-2" href="${esc(BOOKMARKLET)}" onclick="event.preventDefault();toast('Drag it to the bookmarks bar instead of clicking')">+ Send to Job Engine</a>
+   <p class="text-xs muted mt-2">On any job page (Indeed, Glassdoor, a company site, even behind your own sign-in) press it. It opens this tab with the link and the page text filled in. Highlight just the job text first if the page is busy. Nothing is sent anywhere except this dashboard on your PC.</p></div></div>
+   <div id="mres" class="mt-3"></div>
+   <h3 class="font-semibold text-sm mt-5 mb-2">Your manual jobs</h3>${mine.length?mine.map(manualJob).join(""):`<div class="card p-4 text-sm muted">None yet.</div>`}`;
+  if(PREFILL){$("#m_url").value=PREFILL.url;$("#m_text").value=PREFILL.text;PREFILL=null}
+  if(LAST)drawResult();
+  if(mine.some(j=>j.status=="preparing"||j.status=="new"&&CURRUN))setTimeout(()=>{if(tab=="add")render()},8000)}
+ else if(tab=="review"){const jobs=await api("/api/jobs?status=ready,approved");
+  v.innerHTML=`<div class="card p-3 mb-3 flex flex-wrap items-center gap-2 text-sm"><span>Approve every ready role open to SA with fit at least</span><input id="ms" type="number" value="60" class="w-20"><button class="btn" onclick="approveAll()">Approve all</button><span class="muted">Roles that ban AI applications are never included.</span></div>`+
+  (jobs.length?jobs.map(j=>j.status=="approved"?`<div class="card p-3 mb-2 text-sm flex justify-between"><span><b>Approved:</b> ${esc(j.title)} - ${esc(j.company)}</span><button class="btn btn-ghost" onclick="act('${j.id}','reopen')">Undo</button></div>`:jobCard(j,"review")).join(""):`<div class="card p-8 text-center muted">Nothing waiting. The scheduled run fills this up; or press "Find + prepare now".</div>`)}
+ else if(tab=="needs"){const jobs=await api("/api/jobs?status=needs_you,failed");v.innerHTML=jobs.length?jobs.map(j=>jobCard(j,"needs")).join(""):`<div class="card p-8 text-center muted">Nothing needs you.</div>`}
+ else if(tab=="applied"){const jobs=await api("/api/jobs?status=submitted");v.innerHTML=jobs.length?jobs.map(j=>jobCard(j,"applied")).join(""):`<div class="card p-8 text-center muted">No applications submitted yet.</div>`}
+ else if(tab=="found"){const jobs=await api("/api/jobs?status=new,filtered,skipped,expired");
+  v.innerHTML=`<p class="text-sm muted mb-2">Every matching role found, including filtered ones, so you can see why something was dropped.</p>`+jobs.map(j=>`<div class="card p-3 mb-2 text-sm"><div class="flex justify-between gap-2"><div><b>${esc(j.title)}</b> - ${esc(j.company)} <span class="muted">(${esc(j.board)})</span><div class="muted text-xs">${esc(j.status)}: ${esc(j.geo_reason||"")} | fit ${Math.round(j.score||0)} | ${esc(j.score_reasons||"")}</div></div><div class="flex gap-1"><a class="btn" target="_blank" href="${esc(j.url)}">Open</a><button class="btn" onclick="prep('${j.id}')">Prepare</button></div></div></div>`).join("")}
+ else if(tab=="referrals"){const cs=await api("/api/contacts");
+  v.innerHTML=`<div class="card p-4"><p class="text-sm muted mb-2">Send 10-20 a day from LinkedIn. Recruiters first, then hiring managers. Paste the note, press Send, then Mark sent here - it updates "connections sent" in Notion.</p>${cs.map(c=>`<div class="py-1"><div class="text-xs muted mt-2">${esc(c.company)} - ${esc(c.title||"tracker row")}</div>${contactsHTML([c])}</div>`).join("")||"<p class='muted'>None yet.</p>"}</div>`}
+ else if(tab=="boards"){await refresh();
+  v.innerHTML=`<div class="card overflow-x-auto"><table class="w-full text-sm"><thead class="text-left muted"><tr><th class="p-3">Board</th><th>Last run</th><th>Fetched</th><th>Matched</th><th>New</th><th>All-time new</th><th>Status</th><th></th></tr></thead><tbody>${OV.boards.map(b=>`<tr class="border-t border-zinc-100"><td class="p-3 font-medium">${esc(b.board)}</td>
+   <td>${b.never_run?"never":esc((b.started||"").replace("T"," ").slice(0,16))}</td><td>${b.fetched??""}</td><td>${b.matched??""}</td><td>${b.new??""}</td><td>${b.totals?b.totals.new:""}</td>
+   <td>${b.never_run?'<span class="badge">not run</span>':b.ok?(b.fetched?'<span class="badge bg-green-50 text-green-700">ok</span>':'<span class="badge bg-amber-50 text-amber-700" title="Ran but saw 0 postings - selector or login problem">0 seen</span>'):`<span class="badge bg-red-50 text-red-700" title="${esc(b.error)}">error</span>`}</td>
+   <td><button class="btn" onclick="run('board',${JSON.stringify(b.board)})">Run</button></td></tr>`).join("")}</tbody></table></div>
+   <div class="card p-4 mt-3 text-sm"><b>Boards that need a sign-in:</b> press <button class="btn" onclick="run('login','https://wellfound.com/login')">Open login browser</button> and sign in to Wellfound / We Work Remotely / Indeed once. The engine keeps that sign-in in its own profile. It never types your passwords.
+   <div class="mt-3"><b>Apply once, not scraped:</b> ${OV.not_scraped.map(esc).join(", ")}</div></div>`}
+ else if(tab=="run"){const runs=await api("/api/runs");
+  v.innerHTML=`<div class="flex flex-wrap gap-2 mb-3"><button class="btn" onclick="run('scan')">Scan boards</button><button class="btn" onclick="run('prepare')">Prepare best new roles</button><button class="btn" onclick="run('submit')">Submit approved</button><button class="btn" onclick="run('backfill')">Backfill referrals for tracker rows</button></div>
+  <div class="card p-3 mb-3 text-sm">${runs.map(r=>`<div class="flex justify-between py-1 border-b border-zinc-100"><span>${esc(r.job)} ${esc(r.arg||"")} - ${esc(r.started.replace("T"," "))}</span><span><span class="badge">${esc(r.status)}</span> <button class="btn btn-ghost" onclick="CURRUN='${r.id}';render()">log</button></span></div>`).join("")||"<span class='muted'>No runs this session.</span>"}</div>
+  <pre id="log" class="card p-3 text-xs h-[420px] overflow-auto bg-zinc-900 text-zinc-100"></pre>`;if(CURRUN)tail(CURRUN,0)}
+ else if(tab=="settings"){HEALTH=await api("/api/health?force=1");FEAT=await api("/api/features");PRE=await api("/api/presets");PROF=await api("/api/profile");const keys=await api("/api/keys");const cfg=await api("/api/config");
+  const row=(l,ok,txt)=>`<div class="flex justify-between py-1 border-b border-zinc-100"><span>${l}</span><span class="${ok?"text-green-700":"text-amber-700"}">${esc(txt)}</span></div>`;
+  v.innerHTML=`<div class="grid md:grid-cols-2 gap-3">
+  <div class="card p-4 text-sm"><h3 class="font-semibold mb-2">Health</h3>
+   ${row("SearXNG (referral search)",HEALTH.searxng,HEALTH.searxng?"running":"off - start Docker + searxng; DuckDuckGo used meanwhile")}
+   ${row("Notion tracker",HEALTH.notion=="ok",HEALTH.notion)}
+   ${row("PDF export",HEALTH.pdf.indexOf("none")<0,HEALTH.pdf)}
+   ${row("Ollama (offline AI)",!!HEALTH.ollama,HEALTH.ollama?HEALTH.ollama.join(", ")||"running, no models":"not running (optional)")}
+   ${row("Masters",HEALTH.masters.length>=9,HEALTH.masters.length+" files")}
+   ${row("Resume copies saved to","1",HEALTH.resume_copies)}
+   <button class="btn mt-3" onclick="testLLM()">Test free AI providers</button><pre id="llmres" class="text-xs mt-2"></pre></div>
+  <div class="card p-4 text-sm"><h3 class="font-semibold mb-2">Keys (stored only in keys.env on this PC)</h3>
+   ${Object.entries(keys).map(([k,v])=>`<label class="block mt-2"><span class="text-xs muted">${k} ${v.set?"(set "+v.hint+")":"(not set)"}</span><input data-k="${k}" type="password" class="w-full mt-1" placeholder="paste to set / change"></label>`).join("")}
+   <button class="btn btn-primary mt-3" onclick="saveKeys()">Save keys</button>
+   <p class="text-xs muted mt-2">Gmail alerts: GMAIL_ADDRESS + a 16-letter app password from myaccount.google.com/apppasswords (needs 2-step verification on). Free keys: Gemini - aistudio.google.com/apikey. Groq - console.groq.com/keys. Cerebras - cloud.cerebras.ai. OpenRouter - openrouter.ai/keys. Notion - notion.so/my-integrations, then add the integration to Application tracker 2.1 (page ... menu > Connections).</p></div>
+  <div class="card p-4 text-sm md:col-span-2"><h3 class="font-semibold mb-2">About you (used on applications and cover letters)</h3>
+   <div class="grid md:grid-cols-3 gap-2">${Object.entries(PROF.fields).map(([k,v])=>`<label><span class="text-xs muted">${k.replace("_"," ")}</span><input data-p="${k}" value="${esc(v)}" class="w-full"></label>`).join("")}</div>
+   <div class="mt-3 text-xs muted">Your asking rate per level (what you type here is what forms get - keep it honest)</div>
+   <div class="grid grid-cols-2 md:grid-cols-5 gap-2">${["J","J-M","HM","M-S","S"].map(t=>`<label><span class="text-xs muted">${t}</span><input data-r="${t}" value="${esc(PROF.rates[t]||"")}" class="w-full" placeholder="USD 1,500/month"></label>`).join("")}</div>
+   <div class="grid md:grid-cols-3 gap-2 mt-3"><label class="flex items-center gap-2"><input type="checkbox" id="p_intl" ${PROF.international_only?"checked":""}> Only overseas employers (drop SA companies and SA agencies)</label>
+   <label><span class="text-xs muted">Hours you can work (SA time)</span><input id="p_win" value="${esc(PROF.work_window)}" class="w-full"></label>
+   <label><span class="text-xs muted">Notion tracker link (optional)</span><input id="p_notion" value="${esc(PROF.notion_database)}" class="w-full" placeholder="paste the database link"></label></div>
+   <label class="block mt-2"><span class="text-xs muted">Save tailored resumes to this folder</span><input id="p_copies" value="${esc(PROF.resume_copies)}" class="w-full"></label>
+   <button class="btn btn-primary mt-3" onclick="saveProf()">Save my details</button></div>
+  <div class="card p-4 text-sm"><h3 class="font-semibold mb-2">Features (switch off what you don't use)</h3>
+   ${Object.entries(FEAT).map(([k,on])=>`<label class="flex justify-between py-1 border-b border-zinc-100"><span>${FEATLABEL[k]||k}</span><input type="checkbox" data-f="${k}" ${on?"checked":""} onchange="saveFeat()"></label>`).join("")}</div>
+  <div class="card p-4 text-sm"><h3 class="font-semibold mb-2">Resume families</h3>
+   ${Object.entries(PRE.families).map(([f,t])=>`<div class="py-1 border-b border-zinc-100 flex justify-between"><span><b>${esc(f)}</b> <span class="muted">levels: ${t.map(esc).join(", ")}</span></span><button class="btn btn-ghost" onclick="rmFam('${esc(f)}')">remove</button></div>`).join("")}
+   <div class="flex gap-2 mt-3"><select id="preset">${Object.entries(PRE.presets).filter(([k])=>!PRE.families[k]).map(([k,l])=>`<option value="${k}">${esc(l)}</option>`).join("")}</select><button class="btn" onclick="addFam()">Add family</button></div>
+   <div class="mt-4 font-medium">Upload a master resume (.docx)</div><div class="flex flex-wrap gap-2 mt-1"><select id="up_f" onchange="upTiers()">${Object.keys(PRE.families).map(f=>`<option>${esc(f)}</option>`).join("")}</select><select id="up_t"></select><input id="up_file" type="file" accept=".docx"><button class="btn" onclick="upMaster()">Upload</button></div>
+   <p class="text-xs muted mt-1">One file per level. The engine only ever edits copies - your masters stay untouched.</p></div>
+  <div class="card p-4 text-sm md:col-span-2"><h3 class="font-semibold mb-2">config.json</h3><p class="text-xs muted mb-2">Boards, search terms, filters, your profile answers, rates per tier, schedule.</p><textarea id="cfg" class="w-full h-[480px] font-mono text-xs">${esc(cfg.text)}</textarea><button class="btn btn-primary mt-2" onclick="saveCfg()">Save config</button></div></div>`;upTiers()}
+}
+let PROF={fields:{},rates:{}};
+async function saveProf(){const f={},r={};document.querySelectorAll("[data-p]").forEach(i=>f[i.dataset.p]=i.value);document.querySelectorAll("[data-r]").forEach(i=>{if(i.value)r[i.dataset.r]=i.value});
+ const x=await api("/api/profile",{fields:f,rates:r,international_only:$("#p_intl").checked,work_window:$("#p_win").value,notion_database:$("#p_notion").value,resume_copies:$("#p_copies").value});toast(x.ok?"Saved":x.error)}
+let FEAT={},PRE={presets:{},families:{}};
+const FEATLABEL={scan_boards:"Scan job boards",email_alerts:"Read job-alert emails (Gmail)",ai_tailoring:"AI resume tailoring + cover letters",referrals:"Find referral contacts",notion:"Update Notion tracker",auto_fill:"Fill application forms after I approve"};
+async function saveFeat(){const b={};document.querySelectorAll("[data-f]").forEach(i=>b[i.dataset.f]=i.checked);await api("/api/features",b);toast("Saved")}
+async function addFam(){const r=await api("/api/family/add",{preset:$("#preset").value});toast(r.ok?"Added - now upload its resumes: "+r.masters_needed.join(", "):r.error);render()}
+async function rmFam(f){if(!confirm("Stop looking for "+f+" roles? (Your resume files stay.)"))return;const r=await api("/api/family/remove",{family:f});toast(r.ok?"Removed":r.error);render()}
+function upTiers(){const f=$("#up_f").value;$("#up_t").innerHTML=(PRE.families[f]||[]).map(t=>`<option>${esc(t)}</option>`).join("")}
+async function upMaster(){const f=$("#up_file").files[0];if(!f){toast("Choose a .docx first");return}const buf=new Uint8Array(await f.arrayBuffer());let bin="";for(let i=0;i<buf.length;i+=32768)bin+=String.fromCharCode.apply(null,buf.subarray(i,i+32768));
+ const r=await api("/api/master/upload",{family:$("#up_f").value,tier:$("#up_t").value,data_b64:btoa(bin)});toast(r.ok?"Saved as "+r.saved:r.error);render()}
+async function approveAll(){const r=await api("/api/approve_all",{min_score:+$("#ms").value});toast(`Approved ${r.approved}`);render();refresh()}
+async function tail(id,off){if(tab!="run"||CURRUN!=id)return;const r=await api(`/api/run/${id}/log?offset=${off}`);const l=$("#log");if(!l)return;if(off==0)l.textContent="";l.textContent+=r.text;l.scrollTop=l.scrollHeight;
+ if(r.status=="running")setTimeout(()=>tail(id,r.offset),1500);else{refresh()}}
+async function testLLM(){$("#llmres").textContent="testing...";$("#llmres").textContent=JSON.stringify(await api("/api/llm"),null,1)}
+async function saveKeys(){const b={};document.querySelectorAll("[data-k]").forEach(i=>{if(i.value)b[i.dataset.k]=i.value});await api("/api/keys",b);toast("Saved");render()}
+async function saveCfg(){const r=await api("/api/config",{text:$("#cfg").value});toast(r.ok?"Saved":"Not saved: "+r.error)}
+refresh().then(render);setInterval(refresh,30000);
+</script>
+</body>
+</html>

@@ -1,0 +1,19 @@
+# personal - never commit
+config.json
+keys.env
+masters/
+data/
+out/
+logs/
+*.docx
+*.pdf
+!docs/**
+# python
+__pycache__/
+*.pyc
+.venv/
+# helpers made while testing on one PC
+peek.py
+probe.py
+probe_all.py
+*.zip

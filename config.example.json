@@ -1,0 +1,820 @@
+{
+  "profile": {
+    "name": "",
+    "first_name": "",
+    "last_name": "",
+    "email": "",
+    "phone": "",
+    "location": "South Africa",
+    "country": "South Africa",
+    "timezone": "SAST (UTC+2)",
+    "linkedin": "",
+    "portfolio": "",
+    "github": "",
+    "work_setup": "Remote contractor from South Africa. No visa needed for remote contract work.",
+    "notice": "Immediately",
+    "rate_by_tier": {
+      "J": "USD 800/month",
+      "J-M": "USD 1,200/month",
+      "HM": "USD 1,800/month",
+      "M-S": "USD 2,800/month",
+      "S": "USD 4,000/month"
+    },
+    "rate_note": "Your asking rate per level, in USD per month. Forms asking in rands are converted at usd_zar.",
+    "rate_by_family": {},
+    "usd_zar": 18.0
+  },
+  "paths": {
+    "resume_copies": "out/Resume Copies",
+    "note": "Point resume_copies at a Google Drive folder once Google Drive for Desktop is installed, e.g. G:/My Drive/Resume Copies"
+  },
+  "schedule": {
+    "scan_every_hours": 3,
+    "prepare_max_per_run": 25
+  },
+  "llm": {
+    "note": "Free tiers only. First provider with a key that answers is used; the rest are fallbacks. Model names can change - edit here if a provider says model not found.",
+    "providers": [
+      {
+        "name": "gemini",
+        "model": "gemini-flash-latest"
+      },
+      {
+        "name": "gemini",
+        "model": "gemini-flash-lite-latest"
+      },
+      {
+        "name": "groq",
+        "model": "llama-3.3-70b-versatile"
+      },
+      {
+        "name": "cerebras",
+        "model": "llama-3.3-70b"
+      },
+      {
+        "name": "openrouter",
+        "model": "meta-llama/llama-3.3-70b-instruct:free"
+      },
+      {
+        "name": "ollama",
+        "model": "llama3.2:3b",
+        "enabled": false
+      }
+    ]
+  },
+  "geo": {
+    "my_countries": [
+      "South Africa",
+      "ZA",
+      "Africa",
+      "EMEA",
+      "Worldwide",
+      "Anywhere",
+      "Anywhere in the World"
+    ],
+    "international_only": false,
+    "note": "Off by default for family: SA companies hiring remotely are fine. Switch international_only on to keep only overseas employers.",
+    "strict_timezone": true,
+    "work_window_sast": "07:00-23:00",
+    "international_platforms": [
+      "deel",
+      "remote.com",
+      "oyster",
+      "toptal",
+      "lemon.io",
+      "turing",
+      "andela",
+      "proxify",
+      "hire overseas",
+      "pavago",
+      "huzzle",
+      "pearl talent",
+      "multiplier",
+      "omnipresent",
+      "arc.dev",
+      "x-team",
+      "bairesdev"
+    ],
+    "sa_aggregators": [
+      "cherry assistant",
+      "recruitmymom",
+      "workforce staffing",
+      "adcorp",
+      "kelly",
+      "network recruitment",
+      "e-merge",
+      "jobvine"
+    ]
+  },
+  "resume": {
+    "max_bullet_edits": 6,
+    "plain_url_contacts": true,
+    "min_score_to_prepare": 45
+  },
+  "referrals": {
+    "searxng_url": "http://localhost:8888",
+    "max_per_job": 4,
+    "note_max_chars": 280
+  },
+  "notion": {
+    "database_id": "",
+    "family_position": {},
+    "title_position_overrides": []
+  },
+  "families": {
+    "admin": {
+      "tiers": [
+        "J",
+        "J-M",
+        "HM"
+      ],
+      "headline": "Virtual Assistant | Admin & Customer Support",
+      "title_patterns": [
+        "\\bvirtual assistant\\b",
+        "\\bexecutive assistant\\b",
+        "\\badmin(istrative)? (assistant|coordinator|support|officer)",
+        "\\bpersonal assistant\\b",
+        "\\bdata entry\\b",
+        "\\bcustomer (support|service|success|care) (rep|representative|agent|associate|specialist)",
+        "\\boperations (assistant|coordinator)\\b",
+        "\\bappointment setter\\b"
+      ],
+      "core": "\\b(customer|client|admin|schedul|email|calendar|support|data entry|crm|e-?commerce|order|inbox|virtual assistant)"
+    }
+  },
+  "search": {
+    "queries": [
+      "virtual assistant",
+      "executive assistant",
+      "customer support",
+      "data entry"
+    ],
+    "title_exclude": [
+      "\\bdirector\\b",
+      "\\bvp\\b",
+      "vice president",
+      "head of",
+      "\\bchief\\b",
+      "principal",
+      "\\bstaff\\b",
+      "machine learning",
+      "\\bml\\b",
+      "data scien",
+      "devops",
+      "\\bsre\\b",
+      "site reliability",
+      "security engineer",
+      "embedded",
+      "firmware",
+      "\\bios\\b",
+      "android",
+      "\\.net\\b",
+      "\\bc#",
+      "\\bjava\\b",
+      "golang",
+      "\\bgo\\b engineer",
+      "rust",
+      "c\\+\\+",
+      "nurse",
+      "physician",
+      "teacher",
+      "driver",
+      "warehouse",
+      "sales director",
+      "german[- ]speaking",
+      "french[- ]speaking",
+      "spanish[- ]speaking",
+      "dutch[- ]speaking",
+      "portuguese[- ]speaking",
+      "bilingual",
+      "mechanical",
+      "electrical",
+      "civil",
+      "hardware",
+      "python",
+      "\\bphp\\b",
+      "laravel",
+      "salesforce",
+      "\\bsap\\b",
+      "azure",
+      "cloud engineer",
+      "\\bqa\\b",
+      "quality assurance",
+      "test(ing)? engineer",
+      "mobile",
+      "flutter",
+      "react native",
+      "dynamics",
+      "angular",
+      "\\bgo\\b",
+      "business development",
+      "\\bbdr\\b",
+      "\\bsdr\\b",
+      "lifecycle",
+      "platform engineer",
+      "data engineer",
+      "analyst",
+      "speaking",
+      "\\bai engineer",
+      "\\bml",
+      "backend engineer",
+      "back[- ]end engineer",
+      "infrastructure",
+      "network",
+      "sales manager",
+      "medical",
+      "nurse",
+      "legal",
+      "accountant",
+      "bookkeep",
+      "recruit",
+      "marketing manager",
+      "french",
+      "german",
+      "dutch",
+      "italian",
+      "portuguese",
+      "spanish",
+      "japanese",
+      "korean",
+      "chinese",
+      "arabic",
+      "engineering manager"
+    ],
+    "render_headless": true,
+    "render_max_details": 25,
+    "max_age_days": 21,
+    "browser_mode": "real_chrome",
+    "browser_mode_note": "real_chrome = your installed Chrome on its own profile (passes Indeed/Cloudflare checks); playwright = automated browser"
+  },
+  "boards": [
+    {
+      "name": "Himalayas",
+      "kind": "himalayas",
+      "enabled": true,
+      "pages": 2
+    },
+    {
+      "name": "Remotive",
+      "kind": "remotive",
+      "enabled": true
+    },
+    {
+      "name": "Remote OK",
+      "kind": "remoteok",
+      "enabled": true
+    },
+    {
+      "name": "We Work Remotely",
+      "kind": "wwr_rss",
+      "enabled": true,
+      "feeds": [
+        "https://weworkremotely.com/categories/remote-full-stack-programming-jobs.rss",
+        "https://weworkremotely.com/categories/remote-front-end-programming-jobs.rss",
+        "https://weworkremotely.com/categories/remote-design-jobs.rss",
+        "https://weworkremotely.com/categories/remote-customer-support-jobs.rss",
+        "https://weworkremotely.com/categories/remote-sales-and-marketing-jobs.rss",
+        "https://weworkremotely.com/categories/remote-management-and-finance-jobs.rss",
+        "https://weworkremotely.com/categories/all-other-remote-jobs.rss"
+      ]
+    },
+    {
+      "name": "Working Nomads",
+      "kind": "workingnomads",
+      "enabled": true
+    },
+    {
+      "name": "Jobicy",
+      "kind": "jobicy",
+      "enabled": true,
+      "tags": [
+        "dev",
+        "design",
+        "support",
+        "marketing",
+        "admin",
+        "ecommerce"
+      ]
+    },
+    {
+      "name": "EU Remote Jobs",
+      "kind": "render",
+      "enabled": true,
+      "url": "https://euremotejobs.com/jobs/",
+      "link_pattern": "/job/"
+    },
+    {
+      "name": "LinkedIn (public, no login)",
+      "kind": "linkedin",
+      "enabled": true,
+      "posted_within": "r86400",
+      "locations": [
+        "South Africa",
+        "Africa",
+        "EMEA"
+      ],
+      "pages": 2,
+      "delay_s": 5
+    },
+    {
+      "name": "Reddit hiring subs",
+      "kind": "reddit",
+      "enabled": true,
+      "subreddits": [
+        "remotejs",
+        "forhire",
+        "hiring",
+        "WorkOnline",
+        "jobbit"
+      ],
+      "title_must": "\\[?hiring\\]?"
+    },
+    {
+      "name": "Companies hiring Africans (direct feeds)",
+      "kind": "companies",
+      "enabled": true
+    },
+    {
+      "name": "Remote Rocketship (SA)",
+      "kind": "render",
+      "enabled": true,
+      "url": "https://www.remoterocketship.com/country/south-africa/jobs",
+      "link_pattern": "/publicjobs/company/",
+      "follow_pattern": "/country/south-africa/jobs/[a-z0-9-]+/?$",
+      "max_follow": 10,
+      "max_details": 25
+    },
+    {
+      "name": "Jobgether (Africa)",
+      "kind": "render",
+      "enabled": true,
+      "url": "https://jobgether.com/remote-jobs/africa",
+      "link_pattern": "/offer/",
+      "follow_pattern": "/remote-jobs/africa/[a-z0-9-]+$",
+      "max_follow": 8,
+      "max_details": 25
+    },
+    {
+      "name": "Remote Africa",
+      "kind": "render",
+      "enabled": true,
+      "url": "https://remoteafrica.io",
+      "follow_pattern": "/categories/",
+      "max_follow": 4
+    },
+    {
+      "name": "Remote Career Africa",
+      "kind": "render",
+      "enabled": true,
+      "url": "https://www.remotecareer.africa/",
+      "follow_pattern": "/remote-jobs/\\?keywords=",
+      "link_pattern": "jobviewtrack|/job/|/jobs?/[a-z0-9-]{8,}",
+      "same_host": false,
+      "follow_all": true,
+      "max_follow": 4
+    },
+    {
+      "name": "remotiko",
+      "kind": "render",
+      "enabled": true,
+      "url": "https://remotiko.com",
+      "follow_pattern": "remotiko_category=",
+      "link_pattern": "/job/",
+      "max_follow": 5
+    },
+    {
+      "name": "Virtual Staff SA",
+      "kind": "render",
+      "enabled": true,
+      "url": "https://virtualstaffsa.com/",
+      "link_pattern": "/job/",
+      "urls": [
+        "https://virtualstaffsa.com/",
+        "https://virtualstaffsa.com/jobs/"
+      ]
+    },
+    {
+      "name": "HireZar",
+      "kind": "render",
+      "enabled": true,
+      "url": "https://hirezar.co.za",
+      "follow_pattern": "/jobs/\\?q=",
+      "link_pattern": "/jobs/[a-z0-9-]+-[0-9a-f]{6,}",
+      "max_follow": 6
+    },
+    {
+      "name": "NoDesk",
+      "kind": "render",
+      "enabled": true,
+      "url": "https://nodesk.co/remote-jobs/"
+    },
+    {
+      "name": "Dynamite Jobs",
+      "kind": "render",
+      "enabled": true,
+      "url": "https://dynamitejobs.com/remote-jobs",
+      "follow_pattern": "/category/remote-",
+      "link_pattern": "/remote-job/",
+      "max_follow": 5
+    },
+    {
+      "name": "Built In (remote)",
+      "kind": "render",
+      "enabled": true,
+      "url": "https://builtin.com/jobs/remote"
+    },
+    {
+      "name": "Remoters",
+      "kind": "render",
+      "enabled": true,
+      "url": "https://remoters.net/jobs/",
+      "follow_pattern": "remoters\\.net/jobs/[a-z0-9-]+/?$",
+      "link_pattern": "/jobs/[a-z0-9-]+/[a-z0-9-]+",
+      "max_follow": 5
+    },
+    {
+      "name": "Flexa",
+      "kind": "render",
+      "enabled": true,
+      "url": "https://flexa.careers/jobs"
+    },
+    {
+      "name": "Remote 100K",
+      "kind": "render",
+      "enabled": false,
+      "url": "https://remote100k.com"
+    },
+    {
+      "name": "CareerHound",
+      "kind": "render",
+      "enabled": false,
+      "url": "https://careerhound.io",
+      "same_host": false
+    },
+    {
+      "name": "JobBoardAI",
+      "kind": "render",
+      "enabled": false,
+      "url": "https://jobboardai.io",
+      "same_host": false
+    },
+    {
+      "name": "nocodejobs",
+      "kind": "render",
+      "enabled": true,
+      "url": "https://nocodejobs.org",
+      "link_pattern": "-id-[a-z0-9]+$"
+    },
+    {
+      "name": "aitraining.jobs",
+      "kind": "render",
+      "enabled": true,
+      "url": "https://aitraining.jobs",
+      "same_host": false
+    },
+    {
+      "name": "micro1 experts",
+      "kind": "render",
+      "enabled": false,
+      "url": "https://micro1.ai/experts"
+    },
+    {
+      "name": "Mercor",
+      "kind": "render",
+      "enabled": true,
+      "url": "https://work.mercor.com",
+      "link_pattern": "listingId="
+    },
+    {
+      "name": "Workable job search (SA)",
+      "kind": "render",
+      "enabled": true,
+      "url": "https://jobs.workable.com/search?location=South%20Africa&workplace=remote&query={q}",
+      "link_pattern": "/view/"
+    },
+    {
+      "name": "Indeed ZA (remote)",
+      "kind": "render",
+      "enabled": true,
+      "url": "https://za.indeed.com/jobs?q={q}&l=Remote&fromage=3",
+      "link_pattern": "(viewjob|/rc/clk|/pagead/clk|jk=)",
+      "max_details": 10,
+      "headed": true
+    },
+    {
+      "name": "PNet",
+      "kind": "render",
+      "enabled": false,
+      "url": "https://www.pnet.co.za/jobs/{q}-remote"
+    },
+    {
+      "name": "CareerJunction",
+      "kind": "render",
+      "enabled": false,
+      "url": "https://www.careerjunction.co.za/jobs/results?keywords={q}%20remote",
+      "link_pattern": "-job-\\d+\\.aspx|\\.aspx"
+    },
+    {
+      "name": "Careers24",
+      "kind": "render",
+      "enabled": false,
+      "url": "https://www.careers24.com/jobs/kw-{q}-remote/",
+      "headed": true
+    },
+    {
+      "name": "Wellfound (login once)",
+      "kind": "render",
+      "enabled": true,
+      "url": "https://wellfound.com/jobs?remote=true",
+      "link_pattern": "/jobs/\\d+-"
+    },
+    {
+      "name": "Welcome to the Jungle",
+      "kind": "render",
+      "enabled": true,
+      "url": "https://www.welcometothejungle.com/en/jobs?query={q}&refinementList%5Bremote%5D%5B%5D=fulltime",
+      "headed": true,
+      "link_pattern": "/companies/[^/]+/jobs/"
+    },
+    {
+      "name": "Bayt (Gulf)",
+      "kind": "render",
+      "enabled": true,
+      "url": "https://www.bayt.com/en/uae/jobs/{q}-jobs/",
+      "headed": true
+    },
+    {
+      "name": "GulfTalent",
+      "kind": "render",
+      "enabled": true,
+      "url": "https://www.gulftalent.com/jobs/search?keywords={q}",
+      "headed": true
+    },
+    {
+      "name": "NaukriGulf",
+      "kind": "render",
+      "enabled": false,
+      "url": "https://www.naukrigulf.com/{q}-jobs"
+    },
+    {
+      "name": "OnlineJobs.ph",
+      "kind": "render",
+      "enabled": false,
+      "url": "https://www.onlinejobs.ph/jobseekers/jobsearch"
+    },
+    {
+      "name": "Arbeitnow (visa)",
+      "kind": "arbeitnow",
+      "enabled": true,
+      "track": "relocation",
+      "visa_sponsorship": true,
+      "pages": 3
+    },
+    {
+      "name": "relocate.me",
+      "kind": "render",
+      "enabled": true,
+      "track": "relocation",
+      "url": "https://relocate.me/search"
+    },
+    {
+      "name": "Jaabz",
+      "kind": "render",
+      "enabled": true,
+      "track": "relocation",
+      "url": "https://jaabz.com/jobs"
+    },
+    {
+      "name": "landing.jobs",
+      "kind": "render",
+      "enabled": true,
+      "url": "https://landing.jobs/jobs?remote=true",
+      "link_pattern": "/at/[^/]+/"
+    },
+    {
+      "name": "Ruby on Remote",
+      "kind": "render",
+      "enabled": true,
+      "url": "https://rubyonremote.com/remote-jobs/",
+      "link_pattern": "/jobs/"
+    },
+    {
+      "name": "remote.co",
+      "kind": "render",
+      "enabled": true,
+      "url": "https://remote.co/remote-jobs/search?searchkeyword={q}",
+      "link_pattern": "/job-details/|/job/"
+    },
+    {
+      "name": "Remote4Africa",
+      "kind": "render",
+      "enabled": true,
+      "url": "https://remote4africa.com/jobs",
+      "follow_pattern": "/jobs\\\\?category=",
+      "link_pattern": "/jobs?/[a-z0-9-]{6,}"
+    },
+    {
+      "name": "Canada Job Bank",
+      "kind": "render",
+      "enabled": false,
+      "track": "relocation",
+      "url": "https://www.jobbank.gc.ca/jobsearch/jobsearch?searchstring={q}&fsrc=21",
+      "link_pattern": "/jobposting/"
+    },
+    {
+      "name": "Email job alerts (Gmail)",
+      "kind": "email_alerts",
+      "enabled": true,
+      "days": 3
+    }
+  ],
+  "not_scraped": {
+    "note": "Talent networks you apply to once (profile, not listings). Tracked here so nothing is forgotten.",
+    "list": [
+      "Arc.dev",
+      "Lemon.io",
+      "Toptal",
+      "Gun.io",
+      "Turing",
+      "Andela",
+      "OfferZen",
+      "Somewhere.com",
+      "Sagan Recruitment",
+      "Storetasker",
+      "Gebeya",
+      "Upwork",
+      "Fiverr",
+      "FlexJobs (paid)",
+      "Newsletters (Remote Jobs Mzansi, Africa Rising, Business Builders Africa, Africa Hired) - arrive by email",
+      "micro1 (apply via profile)",
+      "CareerHound (needs login)"
+    ]
+  },
+  "submit": {
+    "max_per_run": 15,
+    "delay_between_s": [
+      20,
+      60
+    ],
+    "auto_tick_consent": false,
+    "wait_for_you_minutes": 45,
+    "years_by_tier": {
+      "J": "1",
+      "J-M": "2",
+      "HM": "3",
+      "M-S": "5",
+      "S": "7"
+    },
+    "answers": [
+      [
+        "degree|diploma|bachelor",
+        "No"
+      ],
+      [
+        "how many years|years of (relevant |professional )?experience",
+        "{years}"
+      ],
+      [
+        "(require|need).{0,30}(visa )?sponsorship",
+        "No. I work remotely from South Africa as an independent contractor."
+      ],
+      [
+        "(legally )?(authori[sz]ed|eligible|right) to work in south africa",
+        "Yes"
+      ],
+      [
+        "comfortable working .{0,40}(hours|time ?zone|overlap)|available (to work )?during .{0,30}hours",
+        "Yes"
+      ],
+      [
+        "willing to (work|do) .{0,20}(contract|part[- ]time|freelance)",
+        "Yes"
+      ],
+      [
+        "(do you have|own) (a )?(reliable )?(computer|laptop|internet)",
+        "Yes"
+      ],
+      [
+        "(hourly|monthly|expected) (rate|salary)",
+        "{rate}"
+      ],
+      [
+        "notice period|when can you start",
+        "Immediately"
+      ],
+      [
+        "how soon|start date|earliest (start|date)|available to start",
+        "Immediately"
+      ],
+      [
+        "english|language proficiency|spoken and written",
+        "Fluent"
+      ],
+      [
+        "how did you hear|where did you (hear|find|see)|source",
+        "Job board|Other|Online|Website|LinkedIn"
+      ],
+      [
+        "(live|living|based|reside|located) in south africa",
+        "Yes"
+      ]
+    ],
+    "answers_note": "Pattern -> answer used for required questions. Edit to keep every answer true. {years} uses years_by_tier, {rate} uses profile.rate_by_tier."
+  },
+  "companies_to_watch": [
+    "GitLab",
+    "Automattic",
+    "Canonical",
+    "Elastic",
+    "Zapier",
+    "Buffer",
+    "Doist",
+    "DuckDuckGo",
+    "Hotjar",
+    "Ghost",
+    "SafetyWing",
+    "Toggl",
+    "MailerLite",
+    "Hubstaff",
+    "TestGorilla",
+    "Andela",
+    "Turing",
+    "Flutterwave",
+    "Moniepoint",
+    "Chipper Cash",
+    "Korapay",
+    "FairMoney",
+    "Wave",
+    "Kuda",
+    "Yellow Card",
+    "M-KOPA",
+    "Jumia",
+    "Deel",
+    "Remote",
+    "Oyster",
+    "Multiplier",
+    "Omnipresent",
+    "HashiCorp",
+    "Cloudflare",
+    "MongoDB",
+    "Miro",
+    "X-Team",
+    "BairesDev",
+    "Clevertech",
+    "LottieFiles",
+    "Sourcegraph",
+    "Vercel",
+    "Netlify",
+    "Supabase",
+    "ModSquad",
+    "SupportYourApp",
+    "Invisible Technologies",
+    "LiveWorld",
+    "Canva",
+    "Superside",
+    "HubSpot",
+    "Shopify",
+    "Wise",
+    "Preply",
+    "Reverb",
+    "Uscreen",
+    "Contentful",
+    "Webflow",
+    "Framer",
+    "Mindrift",
+    "TELUS Digital",
+    "Contra",
+    "Help Scout",
+    "Scopic",
+    "Modern Tribe",
+    "Proxify",
+    "Close",
+    "Pearl Talent",
+    "Persona",
+    "BruntWork",
+    "FreeUp",
+    "20four7VA",
+    "Prialto",
+    "Time Etc",
+    "Storetasker",
+    "Huzzle",
+    "VirtuHire",
+    "Hire Overseas",
+    "Assist World",
+    "Somewhere",
+    "Cherry Assistant",
+    "Remote Career Africa",
+    "Swanky",
+    "Pavago",
+    "Lemon.io"
+  ],
+  "companies_note": "Add any company name here. The engine finds its job feed (Greenhouse, Lever, Ashby, Workable, SmartRecruiters, Recruitee) once and reads every role from it.",
+  "features": {
+    "scan_boards": true,
+    "email_alerts": true,
+    "ai_tailoring": true,
+    "referrals": true,
+    "notion": true,
+    "auto_fill": true
+  }
+}
