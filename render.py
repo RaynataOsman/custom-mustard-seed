@@ -9,14 +9,22 @@ site, it:
   5. opens each kept posting and reads it - preferring the schema.org
      JobPosting data most boards embed for Google, and falling back to page text.
 
-The browser profile lives in data/browser-profile. Use "Open login browser" in
-the dashboard once to sign in to boards that need it (Wellfound, WWR, LinkedIn);
-the engine reuses those sign-ins and never types a password itself.
+The browser profile lives in data/real-chrome (scanning) and data/apply-profile (applying).
+Use Boards > Sign-ins in the dashboard once to sign in to the sites that need it; the engine
+reuses those sign-ins and never types a password itself.
+
+One Chrome is started per scan and shared by every browser board (it used to start one per
+board, which left stray Chrome processes behind and locked the profile for the next board).
+Its first tab shows a "Mustard Seed is reading job boards" page instead of about:blank.
 """
 import json, os, re, sys, time, urllib.parse
+from pathlib import Path
 from util import DATA, ascii_clean, strip_html
 
 PROFILE = DATA / "real-chrome"
+APPLY_PROFILE = DATA / "apply-profile"
+LOGIN_LOCK = DATA / "login_open.json"
+STATUS_PAGE = DATA.parent / "ui" / "scanning.html"
 DEFAULT_LINK_RE = (r"/(job|jobs|remote-jobs|job-listing|vacanc|position|careers?/|opening|"
                    r"listing|posting|o/|j/|view/)")
 _JUNK_TEXT = re.compile(r"^(apply|view|see|read|more|next|prev|login|sign|post a job|jobs?|remote jobs?)\b", re.I)
@@ -44,7 +52,9 @@ class RealChrome:
                 "--no-default-browser-check", "--window-size=1366,900"]
         if minimized:
             args.append("--start-minimized")
-        self.proc = subprocess.Popen(args + ["about:blank"])
+        _kill_leftovers(profile)
+        start = STATUS_PAGE.as_uri() if STATUS_PAGE.exists() else "about:blank"
+        self.proc = subprocess.Popen(args + [start])
         last = None
         for _ in range(30):
             time.sleep(0.5)
@@ -66,17 +76,64 @@ class RealChrome:
             self.browser.close()
         except Exception:
             pass
-        try:
-            self.proc.terminate()
-        except Exception:
-            pass
+        _kill_tree(self.proc.pid)
+
+
+def _kill_tree(pid):
+    """Chrome starts several child processes; terminating only the parent left them running and
+    the profile locked ("Opening in existing browser session")."""
+    import subprocess
+    try:
+        if sys.platform == "win32":
+            subprocess.run(["taskkill", "/PID", str(pid), "/T", "/F"], capture_output=True, timeout=15)
+        else:
+            os.kill(pid, 9)
+    except Exception:
+        pass
+
+
+def login_window_open():
+    """True while the sign-in window from the dashboard is open (scans must not touch that profile)."""
+    try:
+        info = json.loads(LOGIN_LOCK.read_text())
+    except Exception:
+        return False
+    if time.time() > info.get("until", 0):
+        return False
+    if sys.platform == "win32":
+        import subprocess
+        r = subprocess.run(["tasklist", "/FI", f"PID eq {info.get('pid')}", "/NH"], capture_output=True, text=True)
+        return str(info.get("pid")) in r.stdout
+    return True
+
+
+def _kill_leftovers(profile):
+    """Close any Chrome still running on this engine profile from an earlier, crashed run."""
+    if sys.platform != "win32":
+        return
+    import subprocess
+    prof = str(profile).replace("'", "''")
+    ps = ("Get-CimInstance Win32_Process -Filter \"Name='chrome.exe'\" | Where-Object { $_.CommandLine -like '*"
+          + prof + "*' -and $_.CommandLine -notlike '*--type=*' } | ForEach-Object { taskkill /PID $_.ProcessId /T /F | Out-Null }")
+    try:
+        subprocess.run(["powershell", "-NoProfile", "-Command", ps], capture_output=True, timeout=30,
+                       creationflags=getattr(subprocess, "CREATE_NO_WINDOW", 0))
+    except Exception:
+        pass
 
 
 def launch(p, headless=True, profile=None):
     """Prefers your real Chrome (passes bot checks); falls back to Playwright's browser."""
     from util import load_config
-    profile = profile or PROFILE
+    profile = Path(profile or PROFILE)
     profile.mkdir(parents=True, exist_ok=True)
+    if login_window_open():
+        try:
+            busy = json.loads(LOGIN_LOCK.read_text()).get("profile")
+        except Exception:
+            busy = None
+        if busy == profile.name:
+            raise RuntimeError("the Sign-in window is open on this profile - close it first")
     if load_config()["search"].get("browser_mode", "real_chrome") == "real_chrome" and sys.platform == "win32":
         try:
             return RealChrome(p, str(profile), minimized=headless)
@@ -89,6 +146,36 @@ def launch(p, headless=True, profile=None):
     except Exception:
         return p.chromium.launch_persistent_context(str(profile), headless=headless, args=args,
                                                     viewport={"width": 1366, "height": 900})
+
+
+_SESSION = {"pw": None, "ctx": None}
+
+
+def session(cfg):
+    """One browser for the whole scan, started on first use."""
+    if _SESSION["ctx"] is None:
+        if login_window_open():
+            raise RuntimeError("the Sign-in window is open on this PC - close it so browser boards can run")
+        from playwright.sync_api import sync_playwright
+        _SESSION["pw"] = sync_playwright().start()
+        headless = cfg["search"].get("render_headless", True)
+        _SESSION["ctx"] = launch(_SESSION["pw"], headless=headless)
+    return _SESSION["ctx"]
+
+
+def shutdown():
+    ctx, pw = _SESSION["ctx"], _SESSION["pw"]
+    _SESSION.update(ctx=None, pw=None)
+    try:
+        if ctx:
+            ctx.close()
+    except Exception:
+        pass
+    try:
+        if pw:
+            pw.stop()
+    except Exception:
+        pass
 
 
 def _jsonld_jobs(page):
@@ -146,6 +233,23 @@ def _from_jsonld(d):
             ", ".join(d.get("employmentType") or [])}
 
 
+def _slug_title(href):
+    """'/job-details/senior-shopify-developer-d08957a7-5e72' -> 'Senior Shopify Developer'."""
+    path = urllib.parse.urlparse(href).path.rstrip("/")
+    segs = [x for x in path.split("/") if x]
+    while segs and re.fullmatch(r"[\d\-]+|[0-9a-f\-]{16,}", segs[-1]):
+        segs.pop()  # /job/<slug>/11609701
+    last = segs[-1] if segs else ""
+    last = re.sub(r"\.\w{2,5}$", "", last)
+    words = [w for w in re.split(r"[-_+]", last) if w]
+    while words and re.search(r"\d", words[-1]):
+        words.pop()  # trailing ids / uuids
+    words = [w for w in words if not re.fullmatch(r"[0-9a-f]{6,}", w)]
+    if len(words) < 2 or len(words) > 14:
+        return ""
+    return " ".join(words).title()
+
+
 def _scroll(page, times):
     for _ in range(times):
         page.mouse.wheel(0, 4000)
@@ -154,16 +258,19 @@ def _scroll(page, times):
 
 def harvest(board, cfg, log, title_ok, known=frozenset()):
     """title_ok(title)->bool decides which links are worth opening."""
-    from playwright.sync_api import sync_playwright
     link_re = re.compile(board.get("link_pattern") or DEFAULT_LINK_RE, re.I)
     max_details = board.get("max_details", cfg["search"].get("render_max_details", 15))
     urls = board.get("urls") or [board["url"]]
     found, out = {}, []
     follow_re = re.compile(board["follow_pattern"], re.I) if board.get("follow_pattern") else None
-    with sync_playwright() as p:
-        headless = cfg["search"].get("render_headless", True) and not board.get("headed")
-        ctx = launch(p, headless=headless)
-        page = ctx.new_page()
+    if True:
+        ctx = session(cfg)
+        try:
+            page = ctx.new_page()
+        except Exception:  # browser died (closed by hand?) - start a fresh one
+            shutdown()
+            ctx = session(cfg)
+            page = ctx.new_page()
         try:
             queue = []
             for start in urls:
@@ -212,8 +319,14 @@ def harvest(board, cfg, log, title_ok, known=frozenset()):
                         queue.append(href)
                         followed += 1
                         continue
-                    if len(text) < 6 or _JUNK_TEXT.match(text) or not link_re.search(href):
+                    if not link_re.search(href):
                         continue
+                    if len(text) < 6 or _JUNK_TEXT.match(text) or not title_ok(text):
+                        # link text is "Apply" / "7 days ago" etc. - the job title is often in the URL itself
+                        st = _slug_title(href)
+                        if not st or not title_ok(st):
+                            continue
+                        text = st
                     if follow_re and follow_re.search(href):
                         continue
                     if board.get("same_host", True) and urllib.parse.urlparse(href).netloc.split(":")[0] \
@@ -263,7 +376,10 @@ def harvest(board, cfg, log, title_ok, known=frozenset()):
                     log(f"    skip {href}: {e}")
                 time.sleep(board.get("delay_s", 1.5))
         finally:
-            ctx.close()
+            try:
+                page.close()
+            except Exception:
+                pass
     for j in out:
         j.update(board=board["name"], source="render")
         if not j.get("company"):
@@ -273,20 +389,54 @@ def harvest(board, cfg, log, title_ok, known=frozenset()):
     return out
 
 
-def open_login_browser(url="https://www.linkedin.com/login"):
-    """Headed browser on the engine profile so the user can sign in to boards."""
+def open_login_browser(arg="https://www.linkedin.com/login"):
+    """Visible Chrome on an engine profile so you can sign in to sites. One tab per site.
+    arg: a URL, or JSON {"urls": [...], "profile": "scan"|"apply"}. Closes itself after 20 minutes."""
     from playwright.sync_api import sync_playwright
-    with sync_playwright() as p:
-        ctx = launch(p, headless=False)
-        page = ctx.new_page()
-        page.goto(url)
-        print("Sign in to any boards you want the engine to use, then close the browser window.", flush=True)
+    try:
+        spec = json.loads(arg) if str(arg).strip().startswith("{") else {"urls": [arg]}
+    except Exception:
+        spec = {"urls": [arg]}
+    urls = [u for u in spec.get("urls", []) if str(u).startswith("http")] or ["https://www.linkedin.com/login"]
+    profile = APPLY_PROFILE if spec.get("profile") == "apply" else PROFILE
+    try:
+        with sync_playwright() as p:
+            ctx = launch(p, headless=False, profile=profile)
+            LOGIN_LOCK.write_text(json.dumps({"pid": os.getpid(), "until": time.time() + 1200, "profile": profile.name}))
+            pages = list(getattr(ctx, "pages", []) or [])
+            first = pages[0] if pages else ctx.new_page()
+            first.goto(urls[0])
+            for u in urls[1:]:
+                ctx.new_page().goto(u)
+            print(f"Opened {len(urls)} sign-in tab(s) on the {'applying' if profile == APPLY_PROFILE else 'scanning'} "
+                  "profile. Sign in where you want to, then close the Chrome window.", flush=True)
+            stop = time.time() + 1200
+            try:
+                while time.time() < stop:
+                    if not ctx.pages:
+                        break
+                    time.sleep(1)
+            except Exception:
+                pass
+            try:
+                ctx.close()
+            except Exception:
+                pass
+        _mark_signins(urls, profile)
+        print("Sign-in window closed. Your sign-ins are saved.", flush=True)
+    finally:
         try:
-            while ctx.pages:
-                time.sleep(1)
+            LOGIN_LOCK.unlink()
         except Exception:
             pass
-        try:
-            ctx.close()
-        except Exception:
-            pass
+
+
+def _mark_signins(urls, profile):
+    f = DATA / "signins.json"
+    try:
+        d = json.loads(f.read_text())
+    except Exception:
+        d = {}
+    for u in urls:
+        d[f"{profile.name}|{urllib.parse.urlparse(u).netloc}"] = time.strftime("%Y-%m-%d %H:%M")
+    f.write_text(json.dumps(d, indent=1))

@@ -212,6 +212,49 @@ Hard rules:
 Return JSON only."""
 
 
+def _cover_example(cfg):
+    """Your own past cover letter, used for structure and voice only (Settings > Cover letter example)."""
+    p = Path(cfg.get("cover_letter", {}).get("example_file") or "masters/cover_letter_example.txt")
+    if not p.is_absolute():
+        p = MASTERS.parent / p
+    try:
+        return p.read_text(encoding="utf-8").strip()
+    except Exception:
+        return ""
+
+
+def _cover_rules(job, cfg):
+    cl = cfg.get("cover_letter", {})
+    return (f"{cl.get('words', '250-350')} words in 4-5 short paragraphs. Start with 'Dear {job['company']} team,'. "
+            "Paragraph 1: name the role and say plainly why you fit it as a remote hire working from "
+            f"{cfg['profile'].get('location', '')}. Paragraph 2: two concrete stories from resume_full_text that match "
+            "the posting's main requirements - name the employer or client and what you actually did. Paragraph 3: how you "
+            "work with distributed teams and which hours you overlap. Optional: one honest line about a gap if the posting "
+            "asks for something the resume lacks. Close by inviting a conversation, then "
+            f"'{cl.get('sign_off', 'Kind regards')},' and the name on its own line. Follow the STRUCTURE, TONE and SENTENCE "
+            "STYLE of cover_letter_style_example when it is given, but NEVER copy a fact, number, employer, tool or "
+            "years-of-experience figure from it - every fact must come from resume_full_text.")
+
+
+_NUM_WORDS = r"(?:one|two|three|four|five|six|seven|eight|nine|ten|eleven|twelve|fifteen|twenty)"
+
+
+def guard_cover(text, master_txt, job_text=""):
+    """Drop cover-letter sentences that state a number (incl. 'eight years') the resume and posting don't contain."""
+    src = (master_txt + " " + job_text).lower()
+    kept, dropped = [], []
+    for para in text.split("\n"):
+        sents = re.split(r"(?<=[.!?])\s+", para)
+        good = []
+        for snt in sents:
+            nums = re.findall(r"\b(\d[\d,.]*\+?%?|" + _NUM_WORDS + r")\s*(?=years?|yrs|clients|projects|%|percent|people|countries)",
+                              snt, re.I) + re.findall(r"\b\d{2,}[\d,.]*%?", snt)
+            bad = [n for n in nums if n.lower().strip("+%,.") not in src]
+            (dropped if bad else good).append(snt)
+        kept.append(" ".join(good))
+    return re.sub(r"\n{3,}", "\n\n", "\n".join(kept)).strip(), dropped
+
+
 def _prompt(job, items, master_txt, family, tier, cfg, retry_note):
     lvl = {"J": "junior", "J-M": "junior-to-mid", "HM": "mid-level", "M-S": "mid-to-senior",
            "S": "senior"}.get(tier, "mid-level")
@@ -252,7 +295,7 @@ def tailor(job, family, tier, retry_note=None, log=print):
     try:
         from util import feature
         if not feature("ai_tailoring", cfg):
-            raise RuntimeError("AI tailoring switched off in Settings > Features (keyword mode)")
+            raise llm.NoLLM("AI tailoring switched off in Settings > Features")
         data, who = llm.chat_json(SYSTEM, _prompt(job, items, master_txt, family, tier, cfg, retry_note),
                                   max_tokens=3500, log=log)
         result["llm"] = who
@@ -269,13 +312,18 @@ def tailor(job, family, tier, retry_note=None, log=print):
             idx = int(it["id"][1:])
             _set_par_text(doc.paragraphs[idx], new)
             result["edits_applied"].append({"id": it["id"], "old": it["text"], "new": new})
-        result["cover_letter"] = ascii_clean(data.get("cover_letter") or "")
+        cover, dropped = guard_cover(ascii_clean(data.get("cover_letter") or ""), master_txt,
+                                     job.get("description") or "")
+        if dropped:
+            log(f"  cover letter: removed {len(dropped)} sentence(s) with figures not on your resume")
+            result["edits_rejected"] += [{"id": "cover", "why": "figure not on resume", "text": d} for d in dropped]
+        result["cover_letter"] = cover if len(cover) > 300 else fallback_cover(job, cfg, master_txt)
         result["interview_prep"] = [ascii_clean(x) for x in (data.get("interview_prep") or [])]
         result["gaps"] = [ascii_clean(x) for x in (data.get("gaps") or [])]
         result["fit_line"] = ascii_clean(data.get("fit_line") or "")
     except llm.NoLLM as e:
         log(f"  no free AI available ({e}); using keyword-only tailoring")
-        result["cover_letter"] = fallback_cover(job, cfg)
+        result["cover_letter"] = fallback_cover(job, cfg, master_txt)
 
     reorder_skills(doc, skill_pars, job.get("description") or "")
     fix_header(doc, family, cfg)
@@ -297,11 +345,22 @@ def tailor(job, family, tier, retry_note=None, log=print):
     return result
 
 
-def fallback_cover(job, cfg):
+def fallback_cover(job, cfg, master_txt=""):
+    """Used only when no free AI answers. Built from your own resume summary, not a template."""
     p = cfg["profile"]
-    return ascii_clean(
-        f"Hi {job['company']} team,\n\n"
-        f"I'd like to apply for the {job['title']} role. I work remotely from {p['location']} ({p['timezone']}), "
-        f"which overlaps fully with European and UK hours and covers the US East Coast afternoon.\n\n"
-        f"My resume covers the work most relevant to this role. I'm happy to walk through any of it on a call.\n\n"
-        f"Thanks for your time,\n{p['name']}")
+    summary = ""
+    for para in master_txt.split("\n"):
+        if len(para.strip()) > 160:
+            summary = para.strip()
+            break
+    sign = cfg.get("cover_letter", {}).get("sign_off", "Kind regards")
+    body = [f"Dear {job['company']} team,",
+            f"I'd like to apply for the {job['title']} role. I work remotely from {p.get('location', '')} "
+            f"({p.get('timezone', '')}), which overlaps fully with UK and European hours and covers the US East Coast afternoon."]
+    if summary:
+        body.append(summary)
+    body += ["Every role I have held has been remote and client-facing, so I am used to turning a loose brief into "
+             "something specific enough to build, and to flagging problems early rather than late.",
+             "I would welcome a short call to talk through the role and what your team is working on.",
+             f"{sign},\n{p['name']}"]
+    return ascii_clean("\n\n".join(body))

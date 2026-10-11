@@ -481,7 +481,7 @@
     {
       "name": "Mercor",
       "kind": "render",
-      "enabled": true,
+      "enabled": false,
       "url": "https://work.mercor.com",
       "link_pattern": "listingId="
     },
@@ -575,7 +575,8 @@
       "kind": "render",
       "enabled": true,
       "track": "relocation",
-      "url": "https://relocate.me/search"
+      "url": "https://relocate.me/international-jobs",
+      "link_pattern": "relocate\\.me/[a-z-]+/[a-z-]+/[a-z0-9-]+/[a-z0-9-]+-\\d+$"
     },
     {
       "name": "Jaabz",
@@ -589,12 +590,12 @@
       "kind": "render",
       "enabled": true,
       "url": "https://landing.jobs/jobs?remote=true",
-      "link_pattern": "/at/[^/]+/"
+      "link_pattern": "/at/[^/]+/[^/?#]+"
     },
     {
       "name": "Ruby on Remote",
       "kind": "render",
-      "enabled": true,
+      "enabled": false,
       "url": "https://rubyonremote.com/remote-jobs/",
       "link_pattern": "/jobs/"
     },
@@ -816,5 +817,61 @@
     "referrals": true,
     "notion": true,
     "auto_fill": true
+  },
+  "signins": [
+    {
+      "name": "Google account",
+      "url": "https://accounts.google.com/",
+      "use": "apply",
+      "why": "Lets 'Sign in with Google' buttons on application forms work, so fewer roles stop at Needs you."
+    },
+    {
+      "name": "LinkedIn",
+      "url": "https://www.linkedin.com/login",
+      "use": "apply",
+      "why": "Easy Apply and LinkedIn-hosted applications. Scanning LinkedIn needs no sign-in."
+    },
+    {
+      "name": "Indeed",
+      "url": "https://secure.indeed.com/auth",
+      "use": "both",
+      "why": "Signed-in visitors get blocked less when the engine reads Indeed, and Indeed Apply forms open pre-filled."
+    },
+    {
+      "name": "Wellfound",
+      "url": "https://wellfound.com/login",
+      "use": "both",
+      "why": "Wellfound only shows the full job list and lets you apply when you're signed in."
+    },
+    {
+      "name": "Welcome to the Jungle",
+      "url": "https://www.welcometothejungle.com/en/signin",
+      "use": "both",
+      "why": "Search results are limited for visitors who aren't signed in."
+    },
+    {
+      "name": "Mercor",
+      "url": "https://work.mercor.com/",
+      "use": "both",
+      "why": "Mercor lists roles only after you've signed in and made a profile."
+    },
+    {
+      "name": "Workable",
+      "url": "https://jobs.workable.com/",
+      "use": "apply",
+      "why": "Optional: a Workable candidate profile pre-fills many Workable forms."
+    },
+    {
+      "name": "Glassdoor",
+      "url": "https://www.glassdoor.com/profile/login_input.htm",
+      "use": "apply",
+      "why": "Some Glassdoor 'Easy Apply' roles need it."
+    }
+  ],
+  "cover_letter": {
+    "example_file": "masters/cover_letter_example.txt",
+    "words": "250-350",
+    "sign_off": "Kind regards",
+    "note": "Paste one of your own best cover letters in Settings > Cover letter example. It sets the structure and voice; facts always come from the resume."
   }
 }

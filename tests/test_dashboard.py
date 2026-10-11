@@ -24,7 +24,11 @@ async def main():
         'features': {'referrals': True}, 'presets': {'families': {'design': ['ONE']}, 'presets': {}},
         'profile': dict(fields={'first_name': 'Test'}, rates={}, international_only=True,
                         work_window='07:00-23:00', notion_database='', resume_copies='out'),
-        'keys': {}, 'config': {'text': '{}'},
+        'keys': {}, 'config': {'text': '{}'}, 'cover_example': {'text': 'Dear team,', 'path': 'x'},
+        'jobs/facets': dict(total=0, lenses={k: 0 for k in ('best','open_sa','fresh','contract','overseas','long_shot','ai_ban')},
+                            family=[], tier=[], board=[], employer_type=[]),
+        'signins': dict(window_open=False, sites=[dict(name='Indeed', url='https://secure.indeed.com/auth', use='both',
+                                                       why="Sign in once", last_scan=None, last_apply=None)]),
         'health': dict(searxng=False, notion='ok', pdf='LibreOffice', ollama=None, masters=['design_ONE.docx'], resume_copies='out')}
     async with async_playwright() as p:
         browser = await p.chromium.launch(channel='chrome', headless=True)

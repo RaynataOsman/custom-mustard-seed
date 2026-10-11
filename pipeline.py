@@ -70,6 +70,11 @@ def scan(only=None):
         c.commit()
         total_new += new
         log(f"  fetched {len(raw)}, matched {matched}, new {new}" + (f"  !! {err}" if err else ""))
+    try:
+        import render
+        render.shutdown()
+    except Exception:
+        pass
     log(f"scan done: {total_new} new roles")
     return total_new
 
@@ -143,17 +148,32 @@ def verify_geo(job):
 
 
 def _cover_files(res, job):
-    """Cover letter as .docx + .pdf next to the resume (some forms want a file)."""
+    """Cover letter as .docx + .pdf next to the resume, laid out like a letter (name, contact line, date, Re:)."""
     from docx import Document
+    from docx.shared import Pt
     from pathlib import Path
     import pdf
     if not res.get("cover_letter"):
         return None
+    cfg = load_config()
+    pr = cfg["profile"]
     d = Document()
-    for para in res["cover_letter"].split("\n"):
-        d.add_paragraph(para)
+    st = d.styles["Normal"]
+    st.font.name, st.font.size = "Calibri", Pt(11)
+    h = d.add_paragraph()
+    r = h.add_run(pr["name"])
+    r.bold, r.font.size = True, Pt(16)
+    d.add_paragraph(" | ".join(x for x in (pr.get("email"), pr.get("phone"), pr.get("location"),
+                                            pr.get("linkedin"), pr.get("portfolio")) if x))
+    d.add_paragraph(datetime.date.today().strftime("%d %B %Y"))
+    re_line = d.add_paragraph()
+    re_line.add_run(f"Re: {job['title']} - {job['company']}").bold = True
+    for para in res["cover_letter"].split("\n\n"):
+        if para.strip():
+            d.add_paragraph(para.strip())
     p = Path(res["cover_letter_path"]).with_suffix(".docx")
-    d.core_properties.author = load_config()["profile"]["name"]
+    d.core_properties.author = pr["name"]
+    d.core_properties.comments = ""
     d.save(p)
     return pdf.to_pdf(p)
 

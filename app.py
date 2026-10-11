@@ -90,23 +90,50 @@ def overview():
             "runs": runs_snapshot(), "not_scraped": cfg.get("not_scraped", {}).get("list", [])}
 
 
-def list_jobs(q):
-    c = db.conn()
-    status = q.get("status", ["ready"])[0]
-    text = q.get("q", [""])[0].strip()
+LENSES = {
+    # quick categories on Review / All found. Each is a SQL condition on the jobs table.
+    "best": "score >= 70 AND geo_ok = 1",
+    "open_sa": "geo_ok = 1",
+    "fresh": "date(coalesce(nullif(posted_at,''), found_at)) >= date('now','-3 day')",
+    "contract": "(lower(coalesce(employment_type,'')) GLOB '*contract*' OR lower(coalesce(employment_type,'')) GLOB '*part*' "
+                "OR lower(coalesce(employment_type,'')) GLOB '*freelance*' OR score_reasons LIKE '%stackable%')",
+    "overseas": "employer_type IN ('overseas_direct','overseas_platform')",
+    "long_shot": "(score < 50 OR geo_ok IS NULL)",
+    "ai_ban": "ai_ban = 1",
+}
+
+
+def _job_filters(q):
     where, args = [], []
+    status = q.get("status", ["ready"])[0]
     if status != "all":
         where.append("status IN (" + ",".join("?" * len(status.split(","))) + ")")
         args += status.split(",")
-    board = q.get("board", [""])[0]
-    if board:
-        where.append("board=?")
-        args.append(board)
+    for key, col in (("board", "board"), ("family", "family"), ("tier", "tier"), ("employer", "employer_type")):
+        val = q.get(key, [""])[0]
+        if val:
+            where.append(f"{col}=?")
+            args.append(val)
+    text = q.get("q", [""])[0].strip()
     if text:
-        where.append("(title LIKE ? OR company LIKE ?)")
-        args += [f"%{text}%"] * 2
-    sql = "SELECT * FROM jobs" + (" WHERE " + " AND ".join(where) if where else "") + \
-          " ORDER BY score DESC, found_at DESC LIMIT 300"
+        where.append("(title LIKE ? OR company LIKE ? OR description LIKE ?)")
+        args += [f"%{text}%"] * 3
+    if q.get("min_score", [""])[0]:
+        where.append("score >= ?")
+        args.append(float(q["min_score"][0]))
+    return where, args
+
+
+def list_jobs(q):
+    c = db.conn()
+    where, args = _job_filters(q)
+    lens = q.get("lens", [""])[0]
+    if lens in LENSES:
+        where.append("(" + LENSES[lens] + ")")
+    order = {"newest": "coalesce(nullif(posted_at,''), found_at) DESC", "company": "company COLLATE NOCASE",
+             "fit": "score DESC, found_at DESC"}.get(q.get("sort", ["fit"])[0], "score DESC, found_at DESC")
+    limit = min(int(q.get("limit", ["300"])[0] or 300), 1000)
+    sql = "SELECT * FROM jobs" + (" WHERE " + " AND ".join(where) if where else "") + f" ORDER BY {order} LIMIT {limit}"
     jobs = db.rows(c, sql, args)
     ids = [j["id"] for j in jobs]
     contacts = {}
@@ -122,6 +149,55 @@ def list_jobs(q):
             except Exception:
                 pass
     return jobs
+
+
+def job_facets(q):
+    """Counts for each quick category and the dropdowns, for the current status + dropdown filters."""
+    c = db.conn()
+    where, args = _job_filters(q)
+    base = " AND ".join(where) or "1=1"
+    out = {"total": db.rows(c, f"SELECT count(*) n FROM jobs WHERE {base}", args)[0]["n"], "lenses": {}}
+    for k, cond in LENSES.items():
+        out["lenses"][k] = db.rows(c, f"SELECT count(*) n FROM jobs WHERE {base} AND ({cond})", args)[0]["n"]
+    sw, sa = _job_filters({"status": q.get("status", ["ready"])})
+    sb = " AND ".join(sw) or "1=1"
+    for col in ("family", "tier", "board", "employer_type"):
+        out[col] = [[r["v"], r["n"]] for r in db.rows(
+            c, f"SELECT {col} v, count(*) n FROM jobs WHERE {sb} AND {col} IS NOT NULL GROUP BY {col} ORDER BY n DESC", sa)]
+    return out
+
+
+def _cover_example_path():
+    cfg = load_config()
+    p = Path(cfg.get("cover_letter", {}).get("example_file") or "masters/cover_letter_example.txt")
+    return p if p.is_absolute() else ROOT / p
+
+
+def cover_example_get():
+    p = _cover_example_path()
+    return {"text": p.read_text(encoding="utf-8") if p.exists() else "", "path": str(p)}
+
+
+def cover_example_set(b):
+    from util import ascii_clean
+    p = _cover_example_path()
+    p.parent.mkdir(parents=True, exist_ok=True)
+    p.write_text(ascii_clean(b.get("text", "")).strip() + "\n", encoding="utf-8")
+    return {"ok": True}
+
+
+def signins():
+    cfg = load_config()
+    try:
+        seen = json.loads((ROOT / "data" / "signins.json").read_text())
+    except Exception:
+        seen = {}
+    out = []
+    for s in cfg.get("signins", []):
+        host = urllib.parse.urlparse(s["url"]).netloc
+        out.append(dict(s, last_scan=seen.get(f"real-chrome|{host}"), last_apply=seen.get(f"apply-profile|{host}")))
+    import render
+    return {"sites": out, "window_open": render.login_window_open()}
 
 
 def job_action(job_id, body):
@@ -355,6 +431,12 @@ class H(BaseHTTPRequestHandler):
             if u.path == "/api/llm":
                 import llm
                 return self._send(200, llm.health())
+            if u.path == "/api/jobs/facets":
+                return self._send(200, job_facets(q))
+            if u.path == "/api/cover_example":
+                return self._send(200, cover_example_get())
+            if u.path == "/api/signins":
+                return self._send(200, signins())
             if u.path == "/api/jobs":
                 return self._send(200, list_jobs(q))
             if u.path == "/api/contacts":
@@ -426,6 +508,8 @@ class H(BaseHTTPRequestHandler):
                 return self._send(200, manual_prepare(b))
             if u.path == "/api/features":
                 return self._send(200, features_set(b))
+            if u.path == "/api/cover_example":
+                return self._send(200, cover_example_set(b))
             if u.path == "/api/family/add":
                 return self._send(200, add_family(b))
             if u.path == "/api/profile":
