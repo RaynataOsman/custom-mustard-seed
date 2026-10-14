@@ -26,6 +26,7 @@ _KICK = threading.Event()
 ACTIVE = ("ready", "approved", "retry", "preparing", "submitting", "needs_you", "failed")
 RUN_JOBS = {"scan", "prepare", "submit", "all", "backfill", "tiers", "retriage"}
 MAX_FILE_BYTES = 900_000
+PRELOAD_READY = 20
 
 
 def settings():
@@ -147,24 +148,38 @@ def push(s, force=False):
         rpc(s, "ms_prune_jobs", p_keep=list(new_hashes))
     _sset(c, "cloud_hashes", new_hashes)
 
-    # PDFs for roles you might open on your phone
-    sent = _sget(c, "cloud_files", {}) if not force else {}
-    for jid, j in seen.items():
-        if j["status"] not in ("ready", "approved", "needs_you", "submitted", "retry"):
-            continue
-        for kind, path in _files_for(j):
-            p = Path(path)
-            if not p.is_file() or p.stat().st_size > MAX_FILE_BYTES:
-                continue
-            sig = f"{p}|{int(p.stat().st_mtime)}"
-            if sent.get(f"{jid}|{kind}") == sig:
-                continue
-            rpc(s, "ms_put_file", p_job_id=jid, p_kind=kind, p_name=p.name,
-                p_b64=base64.b64encode(p.read_bytes()).decode())
-            sent[f"{jid}|{kind}"] = sig
-    _sset(c, "cloud_files", {k: v for k, v in sent.items() if k.split("|")[0] in seen})
+    # PDFs: uploaded ahead of time only for the roles you're most likely to open (the free database is
+    # small and shared); any other PDF is fetched from this PC the moment you open it online.
+    ready_top = sorted((j for j in seen.values() if j["status"] == "ready"), key=lambda j: -(j.get("score") or 0))
+    want = {j["id"] for j in seen.values() if j["status"] in ("approved", "needs_you")}
+    want |= {j["id"] for j in ready_top[:PRELOAD_READY]}
+    sent = {k: v for k, v in (_sget(c, "cloud_files", {}) or {}).items() if isinstance(v, dict)} if not force else {}
+    for jid in want:
+        for kind, _ in _files_for(seen[jid]):
+            upload_file(s, seen[jid], kind, sent)
+    keep = {k: v for k, v in sent.items()
+            if k.split("|")[0] in want or (time.time() - v.get("at", 0) < 72 * 3600 and k.split("|")[0] in seen)}
+    if force or set(keep) != set(sent):
+        rpc(s, "ms_keep_files", p_keys=list(keep))
+    _sset(c, "cloud_files", keep)
     STATUS["pushed"] += len(changed)
     return len(changed)
+
+
+def upload_file(s, job, kind, sent=None):
+    """Send one PDF (resume / cover) for a role. Returns True if it is online now."""
+    path = dict(_files_for(job)).get(kind)
+    p = Path(path) if path else None
+    if not p or not p.is_file() or p.stat().st_size > MAX_FILE_BYTES:
+        return False
+    key, sig = f"{job['id']}|{kind}", f"{p}|{int(p.stat().st_mtime)}"
+    if sent is not None and (sent.get(key) or {}).get("sig") == sig:
+        return True
+    rpc(s, "ms_put_file", p_job_id=job["id"], p_kind=kind, p_name=p.name,
+        p_b64=base64.b64encode(p.read_bytes()).decode())
+    if sent is not None:
+        sent[key] = {"sig": sig, "at": time.time()}
+    return True
 
 
 def push_state(s):
@@ -211,6 +226,16 @@ def run_command(cmd):
         return app.contact_sent(int(p.get("id")))
     if kind == "approve_all":
         return app.approve_all({"min_score": p.get("min_score", 60)})
+    if kind == "file":
+        s = settings()
+        c = db.conn()
+        rows = db.rows(c, "SELECT * FROM jobs WHERE id=?", (str(p.get("id")),))
+        if not rows:
+            return {"ok": False, "error": "role not found on the PC"}
+        sent = {k: v for k, v in (_sget(c, "cloud_files", {}) or {}).items() if isinstance(v, dict)}
+        ok = upload_file(s, rows[0], p.get("kind"), sent)
+        _sset(c, "cloud_files", sent)
+        return {"ok": ok} if ok else {"ok": False, "error": "that PDF is not on the PC (prepare the role again?)"}
     if kind == "run":
         job = p.get("job")
         if job not in RUN_JOBS:

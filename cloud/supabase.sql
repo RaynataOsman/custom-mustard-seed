@@ -34,9 +34,11 @@ create or replace function public.ms_prune_jobs(p_token text, p_keep text[]) ret
 declare n int;
 begin
   if not public.ms_ok(p_token) then raise exception 'unauthorised'; end if;
-  delete from public.ms_jobs where not (id = any(p_keep));
+  -- rows that left the synced window are hidden (status 'gone') and their files emptied
+  update public.ms_jobs set status = 'gone', data = jsonb_build_object('id', id, 'status', 'gone'), updated_at = now()
+    where status <> 'gone' and not (id = any(p_keep));
   get diagnostics n = row_count;
-  delete from public.ms_files where not (job_id = any(p_keep));
+  update public.ms_files set b64 = null where b64 is not null and not (job_id = any(p_keep));
   return n;
 end $$;
 
@@ -62,7 +64,15 @@ create or replace function public.ms_finish_command(p_token text, p_id bigint, p
 begin
   if not public.ms_ok(p_token) then raise exception 'unauthorised'; end if;
   update public.ms_commands set status = 'done', result = p_result, done_at = now() where id = p_id;
-  delete from public.ms_commands where created_at < now() - interval '14 days';
+end $$;
+
+-- PDFs kept online: only the ones the PC lists (others are emptied to save space)
+create or replace function public.ms_keep_files(p_token text, p_keys text[]) returns int language plpgsql security definer set search_path = public, extensions as $$
+declare n int;
+begin
+  if not public.ms_ok(p_token) then raise exception 'unauthorised'; end if;
+  update public.ms_files set b64 = null where b64 is not null and not ((job_id || '|' || kind) = any(p_keys));
+  get diagnostics n = row_count; return n;
 end $$;
 
 create or replace function public.ms_put_file(p_token text, p_job_id text, p_kind text, p_name text, p_b64 text) returns void language plpgsql security definer set search_path = public, extensions as $$
@@ -75,7 +85,7 @@ end $$;
 create or replace function public.ms_file_index(p_token text) returns table (job_id text, kind text, name text) language plpgsql security definer set search_path = public, extensions as $$
 begin
   if not public.ms_ok(p_token) then raise exception 'unauthorised'; end if;
-  return query select f.job_id, f.kind, f.name from public.ms_files f;
+  return query select f.job_id, f.kind, f.name from public.ms_files f where f.b64 is not null;
 end $$;
 
 create or replace function public.ms_check_password(p_token text, p_password text) returns boolean language plpgsql security definer set search_path = public, extensions as $$
@@ -99,7 +109,7 @@ begin
   if not public.ms_ok(p_token) then raise exception 'unauthorised'; end if;
   select jsonb_object_agg(k, jsonb_build_object('v', v, 'updated_at', updated_at)) into r from public.ms_state;
   return coalesce(r, '{}'::jsonb) || jsonb_build_object('now', now(), 'counts',
-    (select coalesce(jsonb_object_agg(status, n), '{}'::jsonb) from (select status, count(*) n from public.ms_jobs group by status) x),
+    (select coalesce(jsonb_object_agg(status, n), '{}'::jsonb) from (select status, count(*) n from public.ms_jobs where status <> 'gone' group by status) x),
     'commands', (select coalesce(jsonb_agg(c order by c.id desc), '[]'::jsonb) from (select id, created_at, kind, payload, status, result, done_at from public.ms_commands order by id desc limit 25) c));
 end $$;
 
@@ -107,7 +117,11 @@ create or replace function public.ms_add_command(p_token text, p_kind text, p_pa
 declare new_id bigint;
 begin
   if not public.ms_ok(p_token) then raise exception 'unauthorised'; end if;
-  if p_kind not in ('job_action', 'contact_sent', 'run', 'approve_all') then raise exception 'unknown command'; end if;
+  if p_kind not in ('job_action', 'contact_sent', 'run', 'approve_all', 'file') then raise exception 'unknown command'; end if;
+  if p_kind = 'file' then
+    select id into new_id from public.ms_commands where kind = 'file' and payload = p_payload and status in ('pending', 'taken') limit 1;
+    if new_id is not null then return new_id; end if;
+  end if;
   insert into public.ms_commands (kind, payload) values (p_kind, coalesce(p_payload, '{}'::jsonb)) returning id into new_id;
   return new_id;
 end $$;
@@ -115,5 +129,5 @@ end $$;
 create or replace function public.ms_get_file(p_token text, p_job_id text, p_kind text) returns jsonb language plpgsql security definer set search_path = public, extensions as $$
 begin
   if not public.ms_ok(p_token) then raise exception 'unauthorised'; end if;
-  return (select jsonb_build_object('name', name, 'b64', b64) from public.ms_files where job_id = p_job_id and kind = p_kind);
+  return (select jsonb_build_object('name', name, 'b64', b64) from public.ms_files where job_id = p_job_id and kind = p_kind and b64 is not null);
 end $$;
