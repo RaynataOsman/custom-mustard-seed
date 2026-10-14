@@ -15,7 +15,8 @@ MAX_LINKEDIN_DETAILS = 15
 DEFAULT_SENDERS = ["indeed", "linkedin", "glassdoor", "careers24", "welcometothejungle",
                    "wellfound", "otta", "pnet", "careerjunction", "substack", "beehiiv",
                    "jobgether", "himalayas", "weworkremotely", "remoteok", "workingnomads",
-                   "dynamitejobs", "builtin", "remotive"]
+                   "dynamitejobs", "builtin", "remotive", "somewhere", "africarising", "africahired",
+                   "businessbuildersafrica", "remote-jobs-mzansi", "remotejobsmzansi"]
 
 _MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"]
 

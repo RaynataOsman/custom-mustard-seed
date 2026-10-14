@@ -155,6 +155,8 @@ header{padding-bottom:26px;border-bottom:1px solid var(--line);margin-bottom:24p
 .brand{display:flex;align-items:center;gap:12px}.brand h1{font-size:23px;font-weight:650;letter-spacing:-.8px;line-height:1.2}.brand-caption{font-size:12px;color:var(--muted);margin-top:4px}#sub{font-size:11px;margin-top:14px;color:var(--muted)}
 body .btn{min-height:38px;justify-content:center;border:1px solid var(--line);border-radius:9px;background:var(--surface);color:var(--ink);padding:8px 13px;font-size:12px;font-weight:600;box-shadow:0 1px 2px #00000004;transition:background .15s, border-color .15s}
 body .btn:hover{background:var(--subtle);border-color:var(--muted)}body .btn-primary{background:var(--accent);color:var(--accent-ink);border-color:var(--accent)}body .btn-primary:hover{background:var(--accent-hover);border-color:var(--accent-hover)}body .btn-green{background:#34624a;color:#fff;border-color:#34624a}body .btn-green:hover{background:#254c37}body .btn-ghost{background:transparent;border-color:transparent;box-shadow:none}
+.lock{border-radius:10px;padding:8px 10px;font-size:13px;max-width:720px}.lock-warn{background:#fff7e6;color:#8a5a00;border:1px solid #f3d9a4}.lock-block{background:#fdecec;color:#9b1c1c;border:1px solid #f5c2c2}
+[data-theme=dark] .lock-warn{background:#3a2c0f;color:#f6d58a;border-color:#6b5320}[data-theme=dark] .lock-block{background:#3d1515;color:#f8b4b4;border-color:#7a2a2a}
 body .card{background:var(--surface);border:1px solid var(--line);border-radius:14px;box-shadow:var(--shadow)}body .muted{color:var(--muted)}body .badge{border-color:var(--line);font-size:11px;font-weight:500;padding:2px 8px}
 .metrics{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:14px;margin-bottom:30px}.metric{display:flex;flex-direction:column;align-items:flex-start;text-align:left;gap:10px;padding:18px 22px;border:1px solid var(--line);border-radius:14px;background:var(--surface);color:var(--muted);font-size:12px;transition:border-color .15s}.metric:hover{border-color:var(--accent)}.metric:first-child{background:var(--accent);color:var(--accent-ink);border-color:var(--accent)}.metric strong{font-size:34px;line-height:1.1;font-weight:550;letter-spacing:-1px;color:var(--ink)}.metric:first-child strong{color:var(--accent-ink)}.metric-link{font-size:11px;display:flex;justify-content:space-between;width:100%}
 #tabs{background:transparent;padding:0 0 12px;gap:5px;border-bottom:1px solid var(--line);border-radius:0;margin-bottom:28px}body .tab{min-height:42px;padding:8px 13px;border:1px solid transparent;font-size:12px;border-radius:8px;color:var(--muted);white-space:nowrap}body .tab:hover{background:var(--subtle)}body .tab.active{background:var(--ink);color:var(--canvas);box-shadow:none}body .tab.active .badge{border-color:transparent;background:var(--canvas);color:var(--ink)}
@@ -247,6 +249,10 @@ async function copy(t){await navigator.clipboard.writeText(t);toast("Copied")}
 async function copyOpen(t,u){await navigator.clipboard.writeText(t);window.open(u,"_blank");toast("Note copied - on LinkedIn press Connect > Add a note > paste")}
 async function sent(id){await api(`/api/contact/${id}/sent`,{});toast("Marked sent");render();refresh()}
 
+function lockHTML(j){const l=j.lock;if(!l||!l.message)return "";
+ if(l.level=="block")return `<div class="lock lock-block mt-2" role="alert"><b>Hold:</b> ${esc(l.message)}</div>`;
+ if(l.level=="warn")return `<div class="lock lock-warn mt-2" role="alert"><b>Same company, different resume:</b> ${esc(l.message)}</div>`;
+ return `<div class="text-xs muted mt-2">${esc(l.message)}</div>`}
 function jobCard(j,mode){const ed=j.edits_log||{};const prep=j.interview_prep||[];const gaps=j.gaps||[];
  return `<div class="card p-4 mb-3">
  <div class="flex flex-wrap justify-between gap-2">
@@ -254,7 +260,7 @@ function jobCard(j,mode){const ed=j.edits_log||{};const prep=j.interview_prep||[
    <div class="text-sm">${esc(j.company)} <span class="muted">- ${esc(j.location||"")}</span></div>
    <div class="flex flex-wrap gap-1 mt-2">${geoBadge(j)}<span class="badge">${esc(j.family)} - ${esc(j.tier)}</span><span class="badge">fit ${Math.round(j.score||0)}</span>
     <span class="badge">${esc(j.board)}</span>${j.posted_at?`<span class="badge">posted ${esc(j.posted_at)}</span>`:""}${j.salary?`<span class="badge">${esc(j.salary)}</span>`:""}
-    ${j.ai_ban?'<span class="badge bg-red-600 text-white border-red-600">Bans AI applications - write it yourself</span>':""}</div></div>
+    ${j.ai_ban?'<span class="badge bg-red-600 text-white border-red-600">Bans AI applications - write it yourself</span>':""}${j.is_platform?'<span class="badge" title="Agency / talent platform: one resume family per platform">platform</span>':""}</div>${lockHTML(j)}</div>
   <div class="flex flex-wrap gap-1 items-start">
    ${mode=="review"?`<button class="btn btn-green" onclick="act('${j.id}','approve')">Approve</button><button class="btn" onclick="retry('${j.id}')">Retry...</button><button class="btn btn-ghost" onclick="act('${j.id}','skip')">Skip</button>`:""}
    ${mode=="needs"?`<button class="btn btn-green" onclick="act('${j.id}','done')">I submitted it</button><button class="btn" onclick="act('${j.id}','approve')">Try again</button><button class="btn" onclick="retry('${j.id}')">Re-tailor...</button><button class="btn btn-ghost" onclick="act('${j.id}','skip')">Skip</button>`:""}
@@ -286,7 +292,8 @@ function filterBar(view,fa){const f=FILT[view];const opt=(key,list,label,fmt)=>`
  <input placeholder="Search title, company or text" value="${esc(f.q||"")}" onkeydown="if(event.key==='Enter')setFilt('${view}','q',this.value)" class="flex-1 min-w-[180px]">
  ${Object.values(f).some(Boolean)?`<button class="btn btn-ghost" onclick="FILT['${view}']=${view=="found"?"{status:'new'}":"{}"};saveFilt();render()">Clear filters</button>`:""}</div>
  ${f.lens?`<p class="text-xs muted mt-2">${esc(LENS_HELP[f.lens])}</p>`:""}</div>`}
-async function act(id,a,note){await api(`/api/job/${id}/action`,{action:a,note});toast(a=="approve"?"Approved - press Submit approved when ready":a);render();refresh()}
+async function act(id,a,note){const r=await fetch(`/api/job/${id}/action`,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({action:a,note})}).then(x=>x.json());
+ if(r.ok===false&&r.lock){if(!confirm(r.error+"\n\nApprove anyway?"))return;await api(`/api/job/${id}/action`,{action:a,note,override:true})}else if(r.ok===false)throw new Error(r.error);toast(a=="approve"?"Approved - press Submit approved when ready":a);render();refresh()}
 function retry(id){const n=prompt("What should change? (e.g. 'lean on Shopify more', 'use the admin resume', 'shorter cover letter')");if(n!==null)act(id,"retry",n)}
 async function prep(id){await run("prepare",id)}
 async function openFolder(p){await fetch("/open-folder?path="+p)}
@@ -366,7 +373,7 @@ async function renderView(version){const v=$("#view");
   v.innerHTML=`<div class="flex flex-wrap gap-2 mb-3"><button class="btn" onclick="run('scan')">Scan boards</button><button class="btn" onclick="run('prepare')">Prepare best new roles</button><button class="btn" onclick="run('submit')">Submit approved</button><button class="btn" onclick="run('backfill')">Backfill referrals for tracker rows</button></div>
   <div class="card p-3 mb-3 text-sm">${runs.map(r=>`<div class="flex justify-between py-1 border-b border-zinc-100"><span>${esc(r.job)} ${esc(r.arg||"")} - ${esc(r.started.replace("T"," "))}</span><span><span class="badge">${esc(r.status)}</span> <button class="btn btn-ghost" onclick="CURRUN='${r.id}';render()">log</button></span></div>`).join("")||"<span class='muted'>No runs this session.</span>"}</div>
   <pre id="log" class="card p-3 text-xs h-[420px] overflow-auto bg-zinc-900 text-zinc-100"></pre>`;if(CURRUN)tail(CURRUN,0,version)}
- else if(tab=="settings"){const values=await Promise.all(["features","presets","profile","keys","config","cover_example"].map(k=>api("/api/"+k)));[FEAT,PRE,PROF]=values;const keys=values[3],cfg=values[4],cex=values[5];
+ else if(tab=="settings"){const values=await Promise.all(["features","presets","profile","keys","config","cover_example","safeguards","cloud"].map(k=>api("/api/"+k)));[FEAT,PRE,PROF]=values;const keys=values[3],cfg=values[4],cex=values[5],sg=values[6],cl=values[7];
   v.innerHTML=`<div class="grid md:grid-cols-2 gap-3">
   <div class="card p-4 text-sm"><h3 class="font-semibold mb-2">Health</h3>
    <div id="health-status" role="status" class="muted">Checking your connections… You can edit settings while this runs.</div>
@@ -384,6 +391,21 @@ async function renderView(version){const v=$("#view");
    <label><span class="text-xs muted">Notion tracker link (optional)</span><input id="p_notion" value="${esc(PROF.notion_database)}" class="w-full" placeholder="paste the database link"></label></div>
    <label class="block mt-2"><span class="text-xs muted">Save tailored resumes to this folder</span><input id="p_copies" value="${esc(PROF.resume_copies)}" class="w-full"></label>
    <button class="btn btn-primary mt-3" onclick="saveProf()">Save my details</button></div>
+  <div class="card p-4 text-sm md:col-span-2"><h3 class="font-semibold mb-2">Online dashboard (use Mustard Seed from your phone)</h3>
+   <p class="text-xs muted mb-2">While this dashboard is open on your PC, it keeps an online copy in step every few seconds. Approve, retry, skip, mark referral notes sent or start a run from anywhere; this PC does the work.</p>
+   <label class="flex items-center gap-2 py-1"><input type="checkbox" id="cl_on" ${cl.enabled?"checked":""} onchange="saveCloud()"> Keep the online dashboard in sync</label>
+   <div class="py-1">Status: <b>${esc(cl.state)}</b>${cl.last_push?` - last sync ${esc(cl.last_push.replace("T"," "))}`:""}${cl.last_error?`<div class="text-red-700 text-xs mt-1">${esc(cl.last_error)}</div>`:""}</div>
+   ${cl.web_url?`<div class="py-1">Link: <a class="underline" target="_blank" href="${esc(cl.web_url)}">${esc(cl.web_url)}</a></div>`:""}
+   <p class="text-xs muted mt-1">${cl.has_password?"Your online password is CLOUD_PASSWORD in Keys - change it there any time.":"Set CLOUD_PASSWORD in Keys to choose your online password."}${cl.has_token?"":" CLOUD_TOKEN is missing."}</p></div>
+  <div class="card p-4 text-sm md:col-span-2"><h3 class="font-semibold mb-2">Safeguards (one company, one version of you)</h3>
+   <label class="flex items-center gap-2 py-1"><input type="checkbox" id="sg_on" ${sg.enabled?"checked":""}> Check every role against what you already sent to that company</label>
+   <div class="flex flex-wrap items-center gap-3 py-1"><span>Look back</span><input id="sg_days" type="number" min="7" max="365" value="${esc(sg.lookback_days)}" class="w-20"><span>days. When a company already has a different resume version from you:</span>
+    <label class="flex items-center gap-1"><input type="radio" name="sg_mode" value="warn" ${sg.company_mode!="skip"?"checked":""}> warn me in Review</label>
+    <label class="flex items-center gap-1"><input type="radio" name="sg_mode" value="skip" ${sg.company_mode=="skip"?"checked":""}> skip the role</label></div>
+   <label class="flex items-center gap-2 py-1"><input type="checkbox" id="sg_plat" ${sg.platform_rule?"checked":""}> Agencies and talent platforms get one resume family only (strongest match wins)</label>
+   <label class="flex items-center gap-2 py-1"><input type="checkbox" id="sg_ref" ${sg.referral_dedup?"checked":""}> Never draft a second referral note to someone already lined up for another role</label>
+   <label class="block mt-2"><span class="text-xs muted">Agencies / talent platforms (one per line)</span><textarea id="sg_list" class="w-full h-28 text-xs">${esc((sg.platforms||[]).join("\n"))}</textarea></label>
+   <button class="btn btn-primary mt-2" onclick="saveSafe()">Save safeguards</button></div>
   <div class="card p-4 text-sm"><h3 class="font-semibold mb-2">Features (switch off what you don't use)</h3>
    ${Object.entries(FEAT).map(([k,on])=>`<label class="flex justify-between py-1 border-b border-zinc-100"><span>${FEATLABEL[k]||k}</span><input type="checkbox" data-f="${k}" ${on?"checked":""} onchange="saveFeat()"></label>`).join("")}</div>
   <div class="card p-4 text-sm"><h3 class="font-semibold mb-2">Resume families</h3>
@@ -411,7 +433,9 @@ async function rmFam(f){if(!confirm("Stop looking for "+f+" roles? (Your resume 
 function upTiers(){const f=$("#up_f").value;$("#up_t").innerHTML=(PRE.families[f]||[]).map(t=>`<option>${esc(t)}</option>`).join("")}
 async function upMaster(){const f=$("#up_file").files[0];if(!f){toast("Choose a .docx first");return}const buf=new Uint8Array(await f.arrayBuffer());let bin="";for(let i=0;i<buf.length;i+=32768)bin+=String.fromCharCode.apply(null,buf.subarray(i,i+32768));
  const r=await api("/api/master/upload",{family:$("#up_f").value,tier:$("#up_t").value,data_b64:btoa(bin)});toast(r.ok?"Saved as "+r.saved:r.error);render()}
-async function approveAll(){const r=await api("/api/approve_all",{min_score:+$("#ms").value});toast(`Approved ${r.approved}`);render();refresh()}
+async function approveAll(){const r=await api("/api/approve_all",{min_score:+$("#ms").value});toast(`Approved ${r.approved}`+(r.held?` - ${r.held} held back with a same-company warning (approve those one by one)`:""));render();refresh()}
+async function saveCloud(){await api("/api/cloud",{enabled:$("#cl_on").checked});toast("Saved");setTimeout(render,1500)}
+async function saveSafe(){const b={enabled:$("#sg_on").checked,platform_rule:$("#sg_plat").checked,referral_dedup:$("#sg_ref").checked,company_mode:document.querySelector("input[name=sg_mode]:checked").value,lookback_days:$("#sg_days").value,platforms:$("#sg_list").value.split(/[\n,]+/).map(x=>x.trim()).filter(Boolean)};await api("/api/safeguards",b);toast("Saved")}
 async function tail(id,off,version){if(tab!="run"||CURRUN!=id||version!==renderVersion)return;const r=await api(`/api/run/${id}/log?offset=${off}`);const l=$("#log");if(!l||tab!=="run"||CURRUN!==id||version!==renderVersion)return;if(off==0)l.textContent="";l.textContent+=r.text;l.scrollTop=l.scrollHeight;
  if(r.status=="running")setTimeout(()=>tail(id,r.offset,version),1500);else{refresh()}}
 async function testLLM(){const output=$("#llmres");output.textContent="testing...";try{output.textContent=JSON.stringify(await api("/api/llm"),null,1)}catch(error){output.textContent=error.message}}

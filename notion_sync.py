@@ -124,6 +124,11 @@ def push_application(job, contacts, log=print, stage="Applied", text_prefix=""):
         "Text": {"rich_text": _rt(text_prefix + f'{job["title"]} | {job.get("board")} | {job.get("location") or ""}')},
         "Connections": {"rich_text": _rt(_connections_text(contacts))},
     }
+    try:
+        if ensure_tier_column():
+            props[TIER_PROP] = {"rich_text": _rt(tier_text(job))}
+    except Exception:
+        pass
     pos = position_for(job, cfg)
     if pos:
         props["Position"] = {"multi_select": [{"name": pos}]}
@@ -142,7 +147,7 @@ def push_application(job, contacts, log=print, stage="Applied", text_prefix=""):
     r = http().post(f"{API}/pages", headers=_h(), json=body, timeout=60)
     if r.status_code >= 300:
         # retry without the bits Notion is fussy about
-        for k in ("Resume", "Position"):
+        for k in ("Resume", "Position", TIER_PROP):
             props.pop(k, None)
         r = http().post(f"{API}/pages", headers=_h(), json=body, timeout=60)
     if r.status_code >= 300:
@@ -150,6 +155,41 @@ def push_application(job, contacts, log=print, stage="Applied", text_prefix=""):
     pid = r.json()["id"]
     log(f"  Notion row created for {job['company']}")
     return pid
+
+
+TIER_PROP = "Tier used"
+_PROP_OK = {}
+
+
+def ensure_tier_column():
+    """Adds a 'Tier used' text column to the tracker database the first time it is needed."""
+    cfg = load_config()
+    db_id = cfg["notion"]["database_id"]
+    if _PROP_OK.get(db_id):
+        return True
+    r = http().get(f"{API}/databases/{db_id}", headers=_h(), timeout=30)
+    if r.status_code < 300 and TIER_PROP in r.json().get("properties", {}):
+        _PROP_OK[db_id] = True
+        return True
+    r = http().patch(f"{API}/databases/{db_id}", headers=_h(), timeout=30,
+                     json={"properties": {TIER_PROP: {"rich_text": {}}}})
+    _PROP_OK[db_id] = r.status_code < 300
+    return _PROP_OK[db_id]
+
+
+def tier_text(job):
+    from safeguards import version_label
+    label = job.get("version_sent") or version_label(job.get("family"), job.get("tier"))
+    f = Path(job.get("resume_pdf") or job.get("resume_docx") or "").name
+    return f"{label} - {f}" if f else label
+
+
+def set_tier_used(page_id, job):
+    if not ensure_tier_column():
+        return False
+    r = http().patch(f"{API}/pages/{page_id}", headers=_h(), timeout=30,
+                     json={"properties": {TIER_PROP: {"rich_text": _rt(tier_text(job))}}})
+    return r.status_code < 300
 
 
 def update_stage(page_id, stage, applied_on=None):

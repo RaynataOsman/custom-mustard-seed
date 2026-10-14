@@ -259,18 +259,49 @@ def timezone_fit(job, cfg=None):
     return False, f"needs {label} hours {span}"
 
 
+def _board_accepts(job, full_cfg):
+    """Boards can list extra places you can work from, e.g. Vacancy Mail -> ["Zimbabwe"]."""
+    for b in full_cfg.get("boards", []) or []:
+        if b.get("name") == job.get("board"):
+            return [c.lower() for c in b.get("accept_countries") or []]
+    return []
+
+
 def geo(job, track="remote"):
     """Returns (ok, reason). ok: 1 eligible, 0 not eligible, None = check the apply page."""
-    cfg = load_config()["geo"]
+    full_cfg = load_config()
+    cfg = full_cfg["geo"]
     me = [c.lower() for c in cfg["my_countries"]]
     loc = (job.get("location") or "").strip()
     desc = job.get("description") or ""
     countries = job.get("countries")
 
+    extra = _board_accepts(job, full_cfg)
+    if extra:
+        hay = (loc + " " + desc[:3000]).lower()
+        hit = next((c for c in extra if re.search(r"(?<![a-z])" + re.escape(c) + r"(?![a-z])", hay)), None)
+        if hit:
+            return 1, f"{job.get('board')}: role is in {hit.title()}"
+
     if track == "relocation":
         if re.search(r"visa sponsorship|sponsor (your|a) visa|relocation (support|package|assistance)", desc, re.I) \
                 or job.get("visa"):
             return 1, "relocation: sponsorship/relocation mentioned"
+        for b in full_cfg.get("boards", []) or []:
+            if b.get("name") == job.get("board") and b.get("sponsor_board"):
+                return 1, f"relocation: {b['name']} lists roles open to international applicants"
+        try:
+            import sponsors
+            if sponsors.is_uk(job):
+                ok = sponsors.is_sponsor(job.get("company"))
+                if ok:
+                    return 1, "relocation: licensed UK visa sponsor (gov.uk register)"
+                if ok is False:
+                    return None, "relocation: UK role, company not found on the UK sponsor register - check"
+        except Exception:
+            pass
+        if re.search(r"\bLMIA\b", desc + " " + (job.get("board") or "")):
+            return 1, "relocation: Canadian LMIA (employer may hire a foreign worker)"
         return None, "relocation: no sponsorship wording, check"
 
     if countries:

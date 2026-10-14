@@ -162,7 +162,10 @@ def _parse_profile(res, company):
     return {"name": name, "headline": headline[:160], "url": url, "kind": kind, "score": score}
 
 
-def find(company, role_title, family, log=print):
+def find(company, role_title, family, log=print, exclude=frozenset()):
+    """exclude: normalised profile URLs already lined up for another of your roles - each person gets
+    one note from you, not one per role (Settings > Safeguards > referral dedup)."""
+    from safeguards import norm_profile_url
     cfg = load_config()
     core = _company_core(company)
     if not core or core.lower().startswith("r/"):
@@ -173,10 +176,13 @@ def find(company, role_title, family, log=print):
         f'site:linkedin.com/in "{core}" {MANAGER_TITLES.get(family, MANAGER_TITLES["dev"])}',
         f'site:linkedin.com/in "{core}" "{role_kw[:40]}"',
     ]
-    seen, people = set(), []
+    seen, people, skipped = set(), [], set()
     for q in queries:
         for res in search(q, cfg) or []:
             p = _parse_profile(res, core)
+            if p and norm_profile_url(p["url"]) in exclude:
+                skipped.add(p["url"])
+                continue
             if p and p["url"] not in seen:
                 seen.add(p["url"])
                 people.append(p)
@@ -198,7 +204,8 @@ def find(company, role_title, family, log=print):
         p["note"], p["followup"] = draft_notes(p, company, role_title, family, cfg)
     if not picked and len(core) > 2:
         log(f"  referrals for {company}: nothing on LinkedIn search for this company name")
-    log(f"  referrals for {company}: {len(picked)} found ({', '.join(p['kind'] for p in picked) or 'none'})")
+    log(f"  referrals for {company}: {len(picked)} found ({', '.join(p['kind'] for p in picked) or 'none'})"
+        + (f", {len(skipped)} skipped - already lined up for another of your roles" if skipped else ""))
     return picked
 
 

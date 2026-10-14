@@ -26,6 +26,7 @@ CREATE TABLE IF NOT EXISTS jobs (
   employer_type TEXT, employer_reason TEXT, tz_reason TEXT
 );
 CREATE INDEX IF NOT EXISTS ix_jobs_status ON jobs(status);
+CREATE TABLE IF NOT EXISTS sync_state (k TEXT PRIMARY KEY, v TEXT);
 CREATE TABLE IF NOT EXISTS contacts (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
   job_id TEXT, notion_page_id TEXT,
@@ -53,12 +54,32 @@ def conn():
     c.row_factory = sqlite3.Row
     c.execute("PRAGMA journal_mode=WAL")
     c.executescript(SCHEMA)
-    for col in ("employer_type", "employer_reason", "tz_reason"):
+    for col in ("employer_type", "employer_reason", "tz_reason", "company_norm", "lock_note", "version_sent"):
         try:
             c.execute(f"ALTER TABLE jobs ADD COLUMN {col} TEXT")
         except sqlite3.OperationalError:
             pass  # already there
+    try:
+        c.execute("ALTER TABLE contacts ADD COLUMN url_norm TEXT")
+    except sqlite3.OperationalError:
+        pass
+    c.execute("CREATE INDEX IF NOT EXISTS ix_jobs_company_norm ON jobs(company_norm)")
+    c.execute("CREATE INDEX IF NOT EXISTS ix_contacts_url_norm ON contacts(url_norm)")
+    _backfill_norms(c)
     return c
+
+
+def _backfill_norms(c):
+    """Fill company_norm / url_norm for rows written before these columns existed (runs once, then no-ops)."""
+    from safeguards import norm_company, norm_profile_url
+    jobs = c.execute("SELECT id, company FROM jobs WHERE company_norm IS NULL").fetchall()
+    if jobs:
+        c.executemany("UPDATE jobs SET company_norm=? WHERE id=?", [(norm_company(r["company"]), r["id"]) for r in jobs])
+    people = c.execute("SELECT id, url FROM contacts WHERE url_norm IS NULL").fetchall()
+    if people:
+        c.executemany("UPDATE contacts SET url_norm=? WHERE id=?", [(norm_profile_url(r["url"]), r["id"]) for r in people])
+    if jobs or people:
+        c.commit()
 
 
 def upsert_job(c, j):
@@ -71,9 +92,15 @@ def upsert_job(c, j):
                      apply_url=coalesce(apply_url, ?), company=coalesce(nullif(company,''), ?),
                      updated_at=? WHERE id=?""",
                   (j.get("description"), j.get("description"), j.get("apply_url"), j.get("company"), now_iso(), j["id"]))
+        if j.get("company"):
+            from safeguards import norm_company
+            c.execute("UPDATE jobs SET company_norm=? WHERE id=? AND coalesce(company_norm,'')=''",
+                      (norm_company(j["company"]), j["id"]))
         return False
+    from safeguards import norm_company
+    j["company_norm"] = norm_company(j.get("company"))
     cols = ["id", "source", "board", "url", "apply_url", "title", "company", "location", "salary",
-            "employment_type", "description", "posted_at"]
+            "employment_type", "description", "posted_at", "company_norm"]
     vals = [j.get(k) for k in cols]
     c.execute(f"INSERT INTO jobs ({','.join(cols)}, found_at, updated_at, status) VALUES "
               f"({','.join('?' * len(cols))}, ?, ?, 'new')", vals + [now_iso(), now_iso()])

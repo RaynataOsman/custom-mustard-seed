@@ -11,7 +11,8 @@ force_utf8_stdout()
 PORT = 8766
 RUNS = {}  # id -> {proc, log, label, started, status}
 _lock = threading.Lock()
-KEY_NAMES = ["GEMINI_API_KEY", "GROQ_API_KEY", "CEREBRAS_API_KEY", "OPENROUTER_API_KEY", "NOTION_TOKEN", "GMAIL_ADDRESS", "GMAIL_APP_PASSWORD"]
+KEY_NAMES = ["GEMINI_API_KEY", "GROQ_API_KEY", "CEREBRAS_API_KEY", "OPENROUTER_API_KEY", "NOTION_TOKEN", "GMAIL_ADDRESS",
+             "GMAIL_APP_PASSWORD", "CLOUD_TOKEN", "CLOUD_PASSWORD"]
 
 
 def start_run(job, arg=None):
@@ -140,7 +141,15 @@ def list_jobs(q):
     if ids:
         for ct in db.rows(c, f"SELECT * FROM contacts WHERE job_id IN ({','.join('?' * len(ids))}) ORDER BY rank", ids):
             contacts.setdefault(ct["job_id"], []).append(ct)
+    import safeguards
+    sg = safeguards.settings()
     for j in jobs:
+        if j["status"] in ("new", "ready", "approved", "retry", "needs_you"):
+            j["lock"] = safeguards.check(c, j)
+        elif j.get("lock_note"):
+            j["lock"] = {"level": "info", "message": j["lock_note"]}
+        j["version"] = j.get("version_sent") or safeguards.version_label(j.get("family"), j.get("tier"))
+        j["is_platform"] = safeguards.is_platform(j, sg)
         j["contacts"] = contacts.get(j["id"], [])
         j["description"] = (j.get("description") or "")[:6000]
         for k in ("interview_prep", "gaps", "edits_log"):
@@ -208,7 +217,11 @@ def job_action(job_id, body):
     if not job:
         return {"ok": False, "error": "not found"}
     if a == "approve":
-        db.set_job(c, job_id, status="approved")
+        import safeguards
+        guard = safeguards.check(c, job[0])
+        if guard and guard["level"] == "block" and not body.get("override"):
+            return {"ok": False, "error": guard["message"], "lock": guard}
+        db.set_job(c, job_id, status="approved", lock_note=safeguards.note_for(guard))
     elif a == "retry":
         db.set_job(c, job_id, status="retry", retry_note=note or None)
     elif a == "skip":
@@ -216,7 +229,9 @@ def job_action(job_id, body):
     elif a == "reopen":
         db.set_job(c, job_id, status="ready")
     elif a == "done":  # finished by hand in the browser
-        db.set_job(c, job_id, status="submitted", applied_at=now_iso(), status_note="finished by you")
+        import safeguards
+        db.set_job(c, job_id, status="submitted", applied_at=now_iso(), status_note="finished by you",
+                   version_sent=safeguards.version_label(job[0].get("family"), job[0].get("tier")))
         c.commit()
         threading.Thread(target=lambda: subprocess.run([sys.executable, "-c",
                          f"import pipeline; pipeline.record_in_notion({json.dumps(job_id)})"], cwd=ROOT), daemon=True).start()
@@ -228,12 +243,64 @@ def job_action(job_id, body):
 
 
 def approve_all(body):
+    """Bulk approve - but never a role with a safeguard warning (those need your eyes)."""
+    import safeguards
     c = db.conn()
     ms = float(body.get("min_score", 60))
-    n = c.execute("UPDATE jobs SET status='approved' WHERE status='ready' AND ai_ban=0 AND geo_ok=1 AND score>=?",
-                  (ms,)).rowcount
-    c.commit()
-    return {"ok": True, "approved": n}
+    n = held = 0
+    for j in db.rows(c, "SELECT * FROM jobs WHERE status='ready' AND ai_ban=0 AND geo_ok=1 AND score>=? "
+                        "ORDER BY score DESC", (ms,)):
+        guard = safeguards.check(c, j)
+        if guard and guard["level"] in ("warn", "block"):
+            held += 1
+            continue
+        db.set_job(c, j["id"], status="approved", lock_note=safeguards.note_for(guard))
+        c.commit()  # later roles in this loop must see this one as approved
+        n += 1
+    return {"ok": True, "approved": n, "held": held}
+
+
+def cloud_get():
+    import cloud_sync
+    return cloud_sync.status()
+
+
+def cloud_set(b):
+    import cloud_sync
+    cfg = load_config()
+    cl = cfg.setdefault("cloud", {})
+    if "enabled" in b:
+        cl["enabled"] = bool(b["enabled"])
+    for k in ("web_url", "supabase_url", "anon_key"):
+        if isinstance(b.get(k), str) and b[k].strip():
+            cl[k] = b[k].strip()
+    save_config_text(json.dumps(cfg, indent=2))
+    cloud_sync.STATUS["state"] = "refresh"
+    cloud_sync.kick()
+    return {"ok": True}
+
+
+def safeguards_get():
+    import safeguards
+    s = safeguards.settings()
+    return {k: s[k] for k in ("enabled", "lookback_days", "company_mode", "platform_rule", "referral_dedup", "platforms")}
+
+
+def safeguards_set(b):
+    import safeguards
+    cfg = load_config()
+    sg = cfg.setdefault("safeguards", {})
+    for k in ("enabled", "platform_rule", "referral_dedup"):
+        if k in b:
+            sg[k] = bool(b[k])
+    if b.get("company_mode") in ("warn", "skip"):
+        sg["company_mode"] = b["company_mode"]
+    if str(b.get("lookback_days", "")).isdigit():
+        sg["lookback_days"] = max(7, min(365, int(b["lookback_days"])))
+    if isinstance(b.get("platforms"), list):
+        sg["platforms"] = sorted({str(p).strip().lower() for p in b["platforms"] if str(p).strip()})
+    save_config_text(json.dumps(cfg, indent=2))
+    return {"ok": True}
 
 
 def contact_sent(cid):
@@ -391,6 +458,15 @@ def allowed_file(path):
     return any(path.is_relative_to(root) for root in ALLOWED_FILE_ROOTS())
 
 
+def _kicked(res):
+    try:
+        import cloud_sync
+        cloud_sync.kick()
+    except Exception:
+        pass
+    return res
+
+
 class H(BaseHTTPRequestHandler):
     def log_message(self, *a):
         pass
@@ -454,6 +530,10 @@ class H(BaseHTTPRequestHandler):
                 return self._send(200, {"text": (ROOT / "config.json").read_text(encoding="utf-8-sig")})
             if u.path == "/api/features":
                 return self._send(200, features_get())
+            if u.path == "/api/safeguards":
+                return self._send(200, safeguards_get())
+            if u.path == "/api/cloud":
+                return self._send(200, cloud_get())
             if u.path == "/api/profile":
                 return self._send(200, profile_get())
             if u.path == "/api/presets":
@@ -497,10 +577,10 @@ class H(BaseHTTPRequestHandler):
         try:
             m = re.match(r"/api/job/([^/]+)/action", u.path)
             if m:
-                return self._send(200, job_action(m.group(1), b))
+                return self._send(200, _kicked(job_action(m.group(1), b)))
             m = re.match(r"/api/contact/(\d+)/sent", u.path)
             if m:
-                return self._send(200, contact_sent(int(m.group(1))))
+                return self._send(200, _kicked(contact_sent(int(m.group(1)))))
             if u.path == "/api/manual/analyse":
                 import manual
                 return self._send(200, manual.analyse(b))
@@ -508,6 +588,10 @@ class H(BaseHTTPRequestHandler):
                 return self._send(200, manual_prepare(b))
             if u.path == "/api/features":
                 return self._send(200, features_set(b))
+            if u.path == "/api/safeguards":
+                return self._send(200, safeguards_set(b))
+            if u.path == "/api/cloud":
+                return self._send(200, cloud_set(b))
             if u.path == "/api/cover_example":
                 return self._send(200, cover_example_set(b))
             if u.path == "/api/family/add":
@@ -519,7 +603,7 @@ class H(BaseHTTPRequestHandler):
             if u.path == "/api/master/upload":
                 return self._send(200, upload_master(b))
             if u.path == "/api/approve_all":
-                return self._send(200, approve_all(b))
+                return self._send(200, _kicked(approve_all(b)))
             if u.path == "/api/run":
                 return self._send(200, start_run(b.get("job"), b.get("arg")))
             m = re.match(r"/api/run/(\d+)/stop", u.path)
@@ -532,6 +616,10 @@ class H(BaseHTTPRequestHandler):
             if u.path == "/api/keys":
                 save_keys({k: v for k, v in b.items() if k in KEY_NAMES})
                 _health_cache["t"] = 0
+                if any(k.startswith("CLOUD_") for k in b):
+                    import cloud_sync
+                    cloud_sync.STATUS["state"] = "refresh"
+                    cloud_sync.kick()
                 return self._send(200, {"ok": True})
             return self._send(404, {"error": "not found"})
         except Exception as e:
@@ -543,6 +631,12 @@ def main():
     if "--port" in sys.argv:
         port = int(sys.argv[sys.argv.index("--port") + 1])
     db.conn()
+    sys.modules.setdefault("app", sys.modules[__name__])  # cloud sync shares this process's RUNS list
+    try:
+        import cloud_sync
+        cloud_sync.start()  # online dashboard sync; idles until switched on in Settings
+    except Exception as e:
+        print(f"cloud sync not started: {e}", flush=True)
     srv = ThreadingHTTPServer(("127.0.0.1", port), H)
     url = f"http://localhost:{port}"
     print(f"Job Engine dashboard: {url}  (close this window to stop it)", flush=True)

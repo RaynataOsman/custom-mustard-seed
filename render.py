@@ -275,7 +275,9 @@ def harvest(board, cfg, log, title_ok, known=frozenset()):
             queue = []
             for start in urls:
                 if "{q}" in start:
-                    queue += [start.replace("{q}", urllib.parse.quote_plus(q))
+                    enc = (lambda q: re.sub(r"[^a-z0-9]+", "-", q.lower()).strip("-")) if board.get("q_slug") \
+                        else urllib.parse.quote_plus
+                    queue += [start.replace("{q}", enc(q))
                               for q in (board.get("queries") or cfg["search"]["queries"])]
                 else:
                     queue.append(start)
@@ -313,6 +315,8 @@ def harvest(board, cfg, log, title_ok, known=frozenset()):
                     if not href.startswith("http") or len(text) < 3 or len(text) > 140:
                         continue
                     href = href.split("#")[0]
+                    if board.get("url_strip"):
+                        href = re.sub(board["url_strip"], "", href)
                     if follow_re and follow_re.search(href) and followed < board.get("max_follow", 8) \
                             and href not in visited and href not in queue \
                             and (board.get("follow_all") or title_ok(re.sub(r"(?i)\bjobs?\b.*$", "", text).strip() or text)):

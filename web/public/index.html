@@ -1,0 +1,272 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="robots" content="noindex,nofollow">
+<meta name="theme-color" content="#f7f5ef">
+<title>Mustard Seed</title>
+<link rel="icon" href="/seed.svg">
+<style>
+:root{color-scheme:light;--canvas:#f7f5ef;--surface:#fffefa;--subtle:#efede5;--ink:#292c24;--muted:#686c5e;--line:#dedfd4;--accent:#e4b83e;--accent-hover:#d2a527;--accent-ink:#352907;--green:#34624a;--green-ink:#fff;--warn-bg:#fff7e6;--warn-ink:#8a5a00;--warn-line:#f3d9a4;--bad-bg:#fdecec;--bad-ink:#9b1c1c;--bad-line:#f5c2c2;--ok-bg:#e9f4ec;--ok-ink:#25573a;--shadow:0 3px 16px #3238230a}
+@media (prefers-color-scheme:dark){:root:not([data-theme=light]){color-scheme:dark;--canvas:#171b17;--surface:#202620;--subtle:#2b322a;--ink:#eeefe6;--muted:#afb8a8;--line:#3c4539;--accent:#e4b83e;--accent-hover:#f0c951;--accent-ink:#302506;--green:#3f7a5b;--warn-bg:#3a2c0f;--warn-ink:#f6d58a;--warn-line:#6b5320;--bad-bg:#3d1515;--bad-ink:#f8b4b4;--bad-line:#7a2a2a;--ok-bg:#20372a;--ok-ink:#a6d6b5;--shadow:0 3px 16px #0000001a}}
+:root[data-theme=dark]{color-scheme:dark;--canvas:#171b17;--surface:#202620;--subtle:#2b322a;--ink:#eeefe6;--muted:#afb8a8;--line:#3c4539;--accent:#e4b83e;--accent-hover:#f0c951;--accent-ink:#302506;--green:#3f7a5b;--warn-bg:#3a2c0f;--warn-ink:#f6d58a;--warn-line:#6b5320;--bad-bg:#3d1515;--bad-ink:#f8b4b4;--bad-line:#7a2a2a;--ok-bg:#20372a;--ok-ink:#a6d6b5;--shadow:0 3px 16px #0000001a}
+*{box-sizing:border-box}
+html{background:var(--canvas)}
+body{margin:0;background:var(--canvas);color:var(--ink);font:14px/1.55 "Segoe UI",system-ui,-apple-system,sans-serif;-webkit-text-size-adjust:100%}
+a{color:inherit}
+button,input,textarea,select{font:inherit;color:inherit}
+.shell{max-width:980px;margin:0 auto;padding:20px 16px 80px}
+header{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:12px;padding-bottom:16px;border-bottom:1px solid var(--line);margin-bottom:16px}
+.brand{display:flex;align-items:center;gap:10px}.brand img{width:38px;height:38px}.brand h1{margin:0;font-size:20px;letter-spacing:-.5px;line-height:1.2}.brand p{margin:0;font-size:12px;color:var(--muted)}
+.pc{display:inline-flex;align-items:center;gap:6px;font-size:12px;color:var(--muted)}.dot{width:9px;height:9px;border-radius:50%;background:#b8b8ad}.dot.on{background:#3f9a63}.dot.off{background:#c0492f}
+nav{display:flex;gap:6px;overflow-x:auto;padding-bottom:6px;margin-bottom:14px;scrollbar-width:none}nav::-webkit-scrollbar{display:none}
+.tab{white-space:nowrap;border:1px solid transparent;background:transparent;border-radius:9px;padding:8px 12px;font-size:13px;color:var(--muted);cursor:pointer;min-height:40px}
+.tab.active{background:var(--ink);color:var(--canvas)}.tab .n{display:inline-block;margin-left:5px;font-size:11px;padding:0 7px;border-radius:99px;background:var(--subtle);color:var(--ink)}.tab.active .n{background:var(--canvas)}
+.card{background:var(--surface);border:1px solid var(--line);border-radius:14px;box-shadow:var(--shadow);padding:14px;margin-bottom:10px}
+.row{display:flex;flex-wrap:wrap;gap:6px;align-items:center}.between{justify-content:space-between}
+.title{font-size:15px;font-weight:650;line-height:1.3}.muted{color:var(--muted)}.small{font-size:12px}
+.badge{display:inline-flex;align-items:center;border:1px solid var(--line);border-radius:99px;padding:1px 8px;font-size:11px;white-space:nowrap}
+.b-ok{background:var(--ok-bg);color:var(--ok-ink);border-color:transparent}.b-bad{background:var(--bad-bg);color:var(--bad-ink);border-color:transparent}.b-warn{background:var(--warn-bg);color:var(--warn-ink);border-color:transparent}
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:4px;min-height:40px;padding:8px 13px;border:1px solid var(--line);border-radius:10px;background:var(--surface);font-size:13px;font-weight:600;cursor:pointer;text-decoration:none}
+.btn:hover{background:var(--subtle)}.btn:disabled{opacity:.55;cursor:wait}
+.btn-primary{background:var(--accent);border-color:var(--accent);color:var(--accent-ink)}.btn-primary:hover{background:var(--accent-hover)}
+.btn-green{background:var(--green);border-color:var(--green);color:#fff}.btn-green:hover{background:var(--green);filter:brightness(.92)}
+.btn-ghost{border-color:transparent;background:transparent}
+.lock{border-radius:10px;padding:8px 10px;font-size:13px;margin-top:8px}.lock-warn{background:var(--warn-bg);color:var(--warn-ink);border:1px solid var(--warn-line)}.lock-block{background:var(--bad-bg);color:var(--bad-ink);border:1px solid var(--bad-line)}
+.pending{opacity:.6}
+details{margin-top:8px}summary{cursor:pointer;font-size:13px;font-weight:600;padding:4px 0}
+pre{white-space:pre-wrap;word-break:break-word;font:12.5px/1.5 inherit;background:var(--subtle);padding:10px;border-radius:10px;margin:6px 0 0;max-height:420px;overflow:auto}
+pre.log{font-family:ui-monospace,Consolas,monospace;font-size:11.5px;background:#1d211c;color:#e8eadf}
+ul{margin:6px 0 0;padding-left:18px}
+.contact{border-top:1px solid var(--line);padding:10px 0}.contact:first-child{border-top:0}
+input[type=password],input[type=number],textarea{width:100%;background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:10px;min-height:42px}
+.login{max-width:360px;margin:12vh auto 0}
+.empty{text-align:center;color:var(--muted);padding:34px 14px}
+.metrics{display:grid;grid-template-columns:repeat(2,1fr);gap:8px;margin-bottom:12px}@media(min-width:700px){.metrics{grid-template-columns:repeat(4,1fr)}}
+.metric{background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:10px 12px;cursor:pointer;text-align:left}.metric strong{display:block;font-size:22px;line-height:1.2}
+#toast{position:fixed;left:50%;bottom:22px;transform:translateX(-50%);background:var(--ink);color:var(--canvas);padding:10px 14px;border-radius:10px;font-size:13px;max-width:92vw;box-shadow:var(--shadow);z-index:9;display:none}
+:focus-visible{outline:3px solid var(--accent);outline-offset:2px}
+.sr{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0)}
+</style>
+</head>
+<body>
+<div class="shell">
+  <div id="app"></div>
+</div>
+<div id="toast" role="status" aria-live="polite"></div>
+<script>
+const $ = (s, el = document) => el.querySelector(s);
+const esc = (s) => (s == null ? "" : String(s)).replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+let NOTES = {}, TAB = (location.hash.slice(1) || "review"), STATE = null, JOBS = [], PENDING = {}, CMD_WATCH = {};
+const TABS = [["review", "Review"], ["needs", "Needs you"], ["applied", "Applied"], ["referrals", "Referrals"], ["found", "Found"], ["runs", "Runs"]];
+const STATUS_FOR = { review: "ready,approved,retry,preparing", needs: "needs_you,failed", applied: "submitted,submitting", referrals: "submitted,ready,approved,needs_you", found: "new" };
+
+function toast(t) { const e = $("#toast"); e.textContent = t; e.style.display = "block"; clearTimeout(e._t); e._t = setTimeout(() => (e.style.display = "none"), 4000); }
+
+async function api(path, body) {
+  const r = await fetch(path, body ? { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) } : {});
+  if (r.status === 401) { showLogin(); throw new Error("Please sign in"); }
+  let d; try { d = await r.json(); } catch { throw new Error("The server returned an unreadable response."); }
+  if (!r.ok || d?.ok === false) throw new Error(d.error || `Request failed (${r.status})`);
+  return d;
+}
+
+function showLogin(msg) {
+  $("#app").innerHTML = `<div class="login card"><div class="brand" style="margin-bottom:14px"><img src="/seed.svg" alt=""><div><h1>Mustard Seed</h1><p>Your job engine, from anywhere</p></div></div>
+  <form id="lf"><label for="pw" class="small muted">Password</label><input id="pw" type="password" autocomplete="current-password" required style="margin:6px 0 10px">
+  <button class="btn btn-primary" style="width:100%">Sign in</button><p id="lerr" class="small" style="color:var(--bad-ink);min-height:1.4em">${esc(msg || "")}</p></form>
+  <p class="small muted">The password is CLOUD_PASSWORD in your PC dashboard (Settings &gt; Keys).</p></div>`;
+  $("#lf").onsubmit = async (e) => {
+    e.preventDefault();
+    const b = e.submitter; b.disabled = true;
+    const r = await fetch("/api/login", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ password: $("#pw").value }) });
+    const d = await r.json().catch(() => ({}));
+    b.disabled = false;
+    if (!r.ok) { $("#lerr").textContent = d.error || "Could not sign in"; return; }
+    boot();
+  };
+  $("#pw").focus();
+}
+
+function pcStatus() {
+  const hb = STATE?.heartbeat;
+  if (!hb) return `<span class="pc"><span class="dot"></span>PC never synced</span>`;
+  const age = (new Date(STATE.now) - new Date(hb.updated_at)) / 1000;
+  const on = age < 150;
+  const ago = age < 90 ? "just now" : age < 3600 ? `${Math.round(age / 60)} min ago` : age < 86400 ? `${Math.round(age / 3600)} h ago` : `${Math.round(age / 86400)} days ago`;
+  return `<span class="pc" title="${on ? "Your PC dashboard is open and syncing" : "Open start.bat on your PC to sync and run commands"}"><span class="dot ${on ? "on" : "off"}"></span>${on ? "PC online" : "PC offline"} - synced ${ago}</span>`;
+}
+
+function counts() {
+  const c = STATE?.counts || {};
+  const ov = STATE?.overview?.v || {};
+  return { review: (c.ready || 0) + (c.approved || 0), needs: (c.needs_you || 0) + (c.failed || 0), applied: c.submitted || 0, referrals: ov.contacts_pending || 0, found: c.new || 0, runs: "" };
+}
+
+function frame(inner) {
+  const n = counts();
+  $("#app").innerHTML = `<header><div class="brand"><img src="/seed.svg" alt=""><div><h1>Mustard Seed</h1><p>${pcStatus()}</p></div></div>
+    <div class="row"><button class="btn btn-ghost" onclick="toggleTheme()" id="tt">Theme</button><button class="btn btn-ghost" onclick="signOut()">Sign out</button></div></header>
+    <nav aria-label="Sections">${TABS.map(([k, l]) => `<button class="tab ${TAB === k ? "active" : ""}" aria-current="${TAB === k ? "page" : "false"}" onclick="go('${k}')">${l}${n[k] !== "" && n[k] !== undefined ? `<span class="n">${n[k]}</span>` : ""}</button>`).join("")}</nav>
+    <main id="main">${inner}</main>`;
+}
+
+function geoBadge(j) {
+  if (j.geo_ok == 1) return `<span class="badge b-ok" title="${esc(j.geo_reason)}">Open to SA</span>`;
+  if (j.geo_ok == 0) return `<span class="badge b-bad" title="${esc(j.geo_reason)}">Not open to SA</span>`;
+  return `<span class="badge b-warn" title="${esc(j.geo_reason)}">Location unclear</span>`;
+}
+
+function lockHTML(j) {
+  const l = j.lock; if (!l || !l.message) return "";
+  if (l.level === "block") return `<div class="lock lock-block" role="alert"><b>Hold:</b> ${esc(l.message)}</div>`;
+  if (l.level === "warn") return `<div class="lock lock-warn" role="alert"><b>Same company, different resume:</b> ${esc(l.message)}</div>`;
+  return `<div class="small muted" style="margin-top:6px">${esc(l.message)}</div>`;
+}
+
+function contactsHTML(j) {
+  const cs = j.contacts || [];
+  cs.forEach((c) => (NOTES[c.id] = c.note || ""));
+  if (!cs.length) return `<p class="small muted">No referral contacts found for this one.</p>`;
+  return cs.map((c) => `<div class="contact"><div class="row between"><div><b>${esc(c.name)}</b> <span class="badge">${esc((c.kind || "").replace("_", " "))}</span>${c.sent ? ' <span class="badge b-ok">sent</span>' : ""}<div class="small muted">${esc(c.headline || "")}</div></div>
+    <div class="row"><a class="btn" target="_blank" rel="noopener" href="${esc(c.url)}">LinkedIn</a><button class="btn" onclick="copyNote(${Number(c.id)})">Copy note</button>${c.sent ? "" : `<button class="btn btn-green" onclick="sent(${c.id})">I sent it</button>`}</div></div>
+    <pre>${esc(c.note || "")}</pre>${c.followup ? `<details><summary>After they accept</summary><pre>${esc(c.followup)}</pre></details>` : ""}</div>`).join("");
+}
+
+function jobCard(j, mode) {
+  const pend = PENDING[j.id];
+  const files = j.files || {};
+  const actions = {
+    review: j.status === "approved"
+      ? `<span class="badge b-ok">approved</span><button class="btn btn-ghost" onclick="act('${j.id}','reopen')">Undo</button>`
+      : j.status === "ready" ? `<button class="btn btn-green" onclick="act('${j.id}','approve')">Approve</button><button class="btn" onclick="retry('${j.id}')">Retry...</button><button class="btn btn-ghost" onclick="act('${j.id}','skip')">Skip</button>`
+      : `<span class="badge">${esc(j.status)}</span>`,
+    needs: `<button class="btn btn-green" onclick="act('${j.id}','done')">I submitted it</button><button class="btn" onclick="act('${j.id}','approve')">Try again</button><button class="btn" onclick="retry('${j.id}')">Re-tailor...</button><button class="btn btn-ghost" onclick="act('${j.id}','skip')">Skip</button>`,
+    found: `<button class="btn" onclick="runCmd('prepare','${j.id}')">Prepare this one</button>`,
+    applied: j.applied_at ? `<span class="badge">applied ${esc(j.applied_at.slice(0, 10))}</span>` : `<span class="badge">${esc(j.status)}</span>`,
+  }[mode] || "";
+  const full = mode !== "found";
+  return `<article class="card ${pend ? "pending" : ""}">
+  <div class="row between" style="align-items:flex-start"><div style="min-width:0;flex:1 1 260px"><div class="title">${esc(j.title)}</div>
+   <div class="small">${esc(j.company)} <span class="muted">- ${esc(j.location || "")}</span></div>
+   <div class="row" style="margin-top:6px">${geoBadge(j)}<span class="badge" title="Resume version">${esc(j.version)}</span><span class="badge">fit ${Math.round(j.score || 0)}</span><span class="badge">${esc(j.board)}</span>${j.salary ? `<span class="badge">${esc(j.salary)}</span>` : ""}${j.is_platform ? '<span class="badge" title="One resume family per platform">platform</span>' : ""}${j.ai_ban ? '<span class="badge b-bad">Bans AI applications - write it yourself</span>' : ""}${j.in_notion ? '<span class="badge">in Notion</span>' : ""}</div>
+   ${lockHTML(j)}</div>
+   <div class="row">${pend ? `<span class="small muted">${esc(pend)}</span>` : actions}</div></div>
+  ${j.status_note ? `<p class="small ${mode === "needs" ? "" : "muted"}" style="margin:8px 0 0">${esc(j.status_note)}</p>` : ""}
+  <div class="row" style="margin-top:10px"><a class="btn" target="_blank" rel="noopener" href="${esc(j.url)}">Posting</a>${j.apply_url && j.apply_url !== j.url ? `<a class="btn" target="_blank" rel="noopener" href="${esc(j.apply_url)}">Apply page</a>` : ""}
+   ${files.resume ? `<a class="btn" target="_blank" href="/api/file?job=${encodeURIComponent(j.id)}&kind=resume">Resume PDF</a>` : ""}${files.cover ? `<a class="btn" target="_blank" href="/api/file?job=${encodeURIComponent(j.id)}&kind=cover">Cover letter PDF</a>` : ""}</div>
+  ${full && j.cover_letter ? `<details><summary>Cover letter</summary><pre>${esc(j.cover_letter)}</pre></details>` : ""}
+  ${full && (j.interview_prep || []).length ? `<details><summary>How to walk into the interview (${j.interview_prep.length})</summary><ul class="small">${j.interview_prep.map((x) => `<li>${esc(x)}</li>`).join("")}</ul>${(j.gaps || []).length ? `<p class="small" style="margin:8px 0 0"><b>Asked for, not on your resume:</b></p><ul class="small">${j.gaps.map((x) => `<li>${esc(x)}</li>`).join("")}</ul>` : ""}</details>` : ""}
+  ${full ? `<details ${mode === "applied" ? "" : ""}><summary>Referral contacts (${(j.contacts || []).length})</summary>${contactsHTML(j)}</details>` : ""}
+  ${j.fit_line ? `<p class="small muted" style="margin:8px 0 0">${esc(j.fit_line)}</p>` : ""}
+  <details><summary>Job description</summary><pre>${esc(j.description || "")}</pre></details>
+ </article>`;
+}
+
+function empty(text) { return `<div class="card empty">${text}</div>`; }
+
+async function render() {
+  location.hash = TAB;
+  if (TAB === "runs") return renderRuns();
+  if (!JOBS.length) frame(`<div class="card empty">Loading...</div>`);
+  const status = STATUS_FOR[TAB];
+  try { JOBS = await api(`/api/jobs?status=${status}&limit=${TAB === "found" ? 200 : 400}`); }
+  catch (e) { frame(empty(esc(e.message))); return; }
+  let html = "";
+  if (TAB === "review") {
+    const ov = STATE?.overview?.v || {};
+    html += `<div class="metrics">${[["Ready to review", (STATE?.counts?.ready || 0), "review"], ["Need your touch", counts().needs, "needs"], ["Applied this week", ov.applied_week || 0, "applied"], ["Referral notes", ov.contacts_pending || 0, "referrals"]].map(([l, n, k]) => `<button class="metric" onclick="go('${k}')"><span class="small muted">${l}</span><strong>${n}</strong></button>`).join("")}</div>`;
+    html += `<div class="card row"><span class="small">Approve every ready role open to SA with fit at least</span><input id="ms" type="number" value="60" style="width:80px;min-height:40px"><button class="btn" onclick="approveAll()">Approve all</button><button class="btn btn-primary" onclick="runCmd('submit')">Submit approved now</button><span class="small muted">Roles with a same-company warning are never bulk-approved.</span></div>`;
+    const rows = JOBS.filter((j) => j.status === "ready" || j.status === "approved");
+    const other = JOBS.filter((j) => !(j.status === "ready" || j.status === "approved"));
+    html += rows.length ? rows.map((j) => jobCard(j, "review")).join("") : empty("Nothing waiting. The scheduled run fills this up, or start one from Runs.");
+    if (other.length) html += `<p class="small muted">Being prepared or re-tailored: ${other.map((j) => esc(j.title + " - " + j.company)).join("; ")}</p>`;
+  } else if (TAB === "needs") {
+    html += JOBS.length ? JOBS.map((j) => jobCard(j, "needs")).join("") : empty("Nothing needs you right now.");
+  } else if (TAB === "applied") {
+    JOBS.sort((a, b) => String(b.applied_at || "").localeCompare(String(a.applied_at || "")));
+    html += JOBS.length ? JOBS.map((j) => jobCard(j, "applied")).join("") : empty("No applications yet.");
+  } else if (TAB === "referrals") {
+    const items = [];
+    JOBS.forEach((j) => (j.contacts || []).forEach((c) => items.push([c, j])));
+    items.sort((a, b) => (a[0].sent - b[0].sent) || (b[1].score - a[1].score));
+    html += items.length ? items.map(([c, j]) => `<div class="card"><div class="small muted">${esc(j.title)} - ${esc(j.company)} <span class="badge">${esc(j.status)}</span></div>${contactsHTML({ contacts: [c] })}</div>`).join("") : empty("No referral notes yet.");
+  } else if (TAB === "found") {
+    html += `<p class="small muted">Best-fit roles found but not prepared yet (top ${JOBS.length}). Prepare one and it lands in Review.</p>`;
+    html += JOBS.length ? JOBS.map((j) => jobCard(j, "found")).join("") : empty("Nothing new.");
+  }
+  frame(html);
+  syncTheme();
+}
+
+function renderRuns() {
+  const runs = STATE?.runs?.v || [];
+  const cmds = STATE?.commands || [];
+  const boards = STATE?.overview?.v?.boards || [];
+  const btn = (job, label, cls = "") => `<button class="btn ${cls}" onclick="runCmd('${job}')">${label}</button>`;
+  frame(`<div class="card"><div class="row">${btn("all", "Find + prepare now", "btn-primary")}${btn("scan", "Find new roles")}${btn("prepare", "Prepare best roles")}${btn("submit", "Submit approved", "btn-green")}${btn("backfill", "Referral backfill")}${btn("tiers", "Fill Notion Tier used")}</div>
+   <p class="small muted" style="margin:8px 0 0">Runs happen on your PC. It picks the command up within about 15 seconds while the dashboard is open there.</p></div>
+   ${runs.map((r) => `<div class="card"><div class="row between"><b>${esc(r.job)} ${esc(r.arg || "")}</b><span class="badge ${/fail/.test(r.status) ? "b-bad" : r.status === "running" ? "b-warn" : "b-ok"}">${esc(r.status)}</span></div><div class="small muted">${esc((r.started || "").replace("T", " "))}</div>${r.tail ? `<details ${r.status === "running" ? "open" : ""}><summary>Log</summary><pre class="log">${esc(r.tail)}</pre></details>` : ""}</div>`).join("") || empty("No runs since the PC dashboard started.")}
+   <div class="card"><b>Recent commands from here</b>${cmds.slice(0, 12).map((c) => `<div class="row between small" style="border-top:1px solid var(--line);padding:6px 0"><span>${esc(c.kind)} ${esc(c.payload?.action || c.payload?.job || "")}</span><span class="muted">${esc(c.status)}${c.result && c.result.ok === false ? " - " + esc(c.result.error) : ""}</span></div>`).join("") || `<p class="small muted">None yet.</p>`}</div>
+   <details class="card"><summary>Boards (${boards.length})</summary>${boards.map((b) => `<div class="row between small" style="border-top:1px solid var(--line);padding:6px 0"><span>${esc(b.board)}</span><span class="badge ${b.never_run ? "" : b.ok ? (b.fetched ? "b-ok" : "b-warn") : "b-bad"}" title="${esc(b.error || "")}">${b.never_run ? "not run" : b.ok ? `${b.fetched || 0} seen, ${b.new || 0} new` : "error"}</span></div>`).join("")}</details>`);
+  syncTheme();
+}
+
+async function command(body, label) {
+  const r = await api("/api/command", body);
+  CMD_WATCH[r.id] = label;
+  toast(`${label} - sent to your PC`);
+  pollSoon();
+  return r.id;
+}
+
+async function act(id, action, note, override) {
+  PENDING[id] = "Sending to your PC...";
+  render();
+  await command({ kind: "job_action", id, action, note, override }, { approve: "Approve", retry: "Retry", skip: "Skip", reopen: "Undo", done: "Marked submitted" }[action] || action);
+}
+function retry(id) { const n = prompt("What should change? (e.g. 'lean on Shopify more', 'use the admin resume', 'shorter cover letter')"); if (n !== null) act(id, "retry", n); }
+async function sent(id) { await command({ kind: "contact_sent", id }, "Marked sent"); }
+async function approveAll() { await command({ kind: "approve_all", min_score: +$("#ms").value }, "Approve all"); }
+async function runCmd(job, arg) { await command({ kind: "run", job, arg: arg || null }, arg ? "Prepare" : ({ all: "Find + prepare", scan: "Find", prepare: "Prepare", submit: "Submit approved", backfill: "Referral backfill", tiers: "Notion Tier used" }[job] || job)); if (arg) PENDING[arg] = "Preparing on your PC..."; }
+function copyNote(id) { copyText(NOTES[id] || ""); }
+function copyText(t) { navigator.clipboard.writeText(t).then(() => toast("Copied"), () => toast("Copy failed - select the text instead")); }
+async function signOut() { await fetch("/api/login", { method: "DELETE" }); showLogin(); }
+function go(t) { TAB = t; window.scrollTo(0, 0); render(); }
+
+async function loadState() {
+  STATE = await api("/api/state");
+  for (const c of STATE.commands || []) {
+    if (CMD_WATCH[c.id] && c.status === "done") {
+      const label = CMD_WATCH[c.id]; delete CMD_WATCH[c.id];
+      const res = c.result || {};
+      if (res.ok === false && res.lock && c.kind === "job_action") {
+        if (confirm(`${res.error}\n\nApprove anyway?`)) { act(c.payload.id, "approve", c.payload.note, true); continue; }
+      } else if (res.ok === false) toast(`${label}: ${res.error || "failed"}`);
+      else toast(`${label}: done on your PC`);
+      if (c.payload?.id) delete PENDING[c.payload.id];
+      if (c.payload?.arg) delete PENDING[c.payload.arg];
+      setTimeout(refreshJobs, 4000);
+    }
+  }
+}
+async function refreshJobs() { await loadState().catch(() => {}); render(); }
+let pollTimer = null;
+function pollSoon() { clearTimeout(pollTimer); let n = 0; const tick = async () => { n++; try { await loadState(); } catch {} if (Object.keys(CMD_WATCH).length && n < 40) pollTimer = setTimeout(tick, 3000); else render(); }; pollTimer = setTimeout(tick, 2500); }
+
+function syncTheme() { const b = $("#tt"); if (b) b.textContent = document.documentElement.dataset.theme === "dark" ? "Light" : "Dark"; }
+function toggleTheme() { const dark = document.documentElement.dataset.theme === "dark" || (!document.documentElement.dataset.theme && matchMedia("(prefers-color-scheme: dark)").matches); document.documentElement.dataset.theme = dark ? "light" : "dark"; try { localStorage.setItem("ms-theme", document.documentElement.dataset.theme); } catch {} syncTheme(); }
+try { const t = localStorage.getItem("ms-theme"); if (t) document.documentElement.dataset.theme = t; } catch {}
+
+async function boot() {
+  try { await loadState(); } catch (e) { if (!/sign in/i.test(e.message)) frame(empty(esc(e.message))); return; }
+  render();
+}
+window.addEventListener("hashchange", () => { const t = location.hash.slice(1); if (t && t !== TAB && TABS.some(([k]) => k === t)) { TAB = t; render(); } });
+window.addEventListener("unhandledrejection", (e) => { e.preventDefault(); toast(e.reason?.message || "Something went wrong"); });
+setInterval(() => { if (!document.hidden && STATE) loadState().then(() => { if (!Object.keys(CMD_WATCH).length) { const top = document.activeElement; if (!top || top === document.body) render(); } }).catch(() => {}); }, 60000);
+boot();
+</script>
+</body>
+</html>

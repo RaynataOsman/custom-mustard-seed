@@ -4,11 +4,12 @@
   prepare    tailor resume + cover letter + interview prep + referral contacts for the best new roles
   submit     apply to the roles you APPROVED in the dashboard (visible browser)
   backfill   find referral contacts for tracker rows whose Connections are blank
+  tiers      fill the Notion "Tier used" column for rows already in the tracker
   all        scan + prepare   (this is what the scheduled task runs; it never submits)
   board <name>   scan one board only (for testing)
 """
 import json, sys, time, traceback, datetime, re
-import db, triage, boards, tailor, referrals
+import db, triage, boards, tailor, referrals, safeguards
 from util import load_config, Log, job_key, get, strip_html, force_utf8_stdout, now_iso, OUT, feature
 
 force_utf8_stdout()
@@ -27,6 +28,12 @@ def scan(only=None):
     if not only and not feature("scan_boards", cfg) and not feature("email_alerts", cfg):
         log("scanning is switched off in Settings > Features")
         return 0
+    if any(b.get("track") == "relocation" and b.get("enabled", True) for b in cfg["boards"]):
+        try:
+            import sponsors
+            sponsors.refresh(log)
+        except Exception as e:
+            log(f"UK sponsor register skipped: {e}")
     for b in cfg["boards"]:
         if only and only.lower() not in b["name"].lower():
             continue
@@ -144,7 +151,8 @@ def verify_geo(job):
     except Exception:
         return None, "could not open apply page"
     probe = dict(job, description=text, location=job.get("location") or "", countries=None)
-    return triage.geo(probe)
+    track = next((b.get("track", "remote") for b in load_config()["boards"] if b["name"] == job.get("board")), "remote")
+    return triage.geo(probe, track)
 
 
 def _cover_files(res, job):
@@ -203,18 +211,34 @@ def prepare(limit=None, ids=None):
                     continue
                 if ok == 1:
                     db.set_job(c, job["id"], geo_ok=1, geo_reason="apply page: " + why)
-            log(f"  {job['company']} - {job['title']} [{job['family']} {job['tier']}]")
+            guard = safeguards.check(c, job, cfg)
+            if guard and guard["level"] == "block":
+                db.set_job(c, job["id"], status="skipped", status_note=guard["message"], lock_note=guard["message"])
+                db.event(c, job["id"], "safeguard_skip", guard["message"])
+                c.commit()
+                log(f"  {job['company']}: skipped - {guard['message']}")
+                continue
+            if guard and guard["level"] == "wins":
+                for lid in guard["losers"]:
+                    db.set_job(c, lid, status="skipped", lock_note=guard["message"],
+                               status_note=f"Platform rule: a stronger match at {job['company']} was chosen ({job['title']})")
+                    db.event(c, lid, "safeguard_skip", "platform rule - stronger match chosen")
+                log(f"  {job['company']}: {guard['message']}")
+            db.set_job(c, job["id"], lock_note=safeguards.note_for(guard) if guard and guard["level"] != "wins" else None)
+            log(f"  {job['company']} - {job['title']} [{job['family']} {job['tier']}]"
+                + (f"  !! {guard['message']}" if guard and guard["level"] == "warn" else ""))
             res = tailor.tailor(job, job["family"], job["tier"], retry_note=job.get("retry_note"), log=log)
             pdf_path = pdf.to_pdf(res["docx"])
             cl_pdf = _cover_files(res, job)
-            contacts = referrals.find(job["company"], job["title"], job["family"], log=log) \
+            contacts = referrals.find(job["company"], job["title"], job["family"], log=log,
+                                      exclude=contacted_elsewhere(c, job["id"])) \
                 if feature("referrals", cfg) else []
             c.execute("DELETE FROM contacts WHERE job_id=? AND sent=0", (job["id"],))
             for p in contacts:
                 c.execute("""INSERT OR IGNORE INTO contacts (job_id, company, name, headline, url, kind, rank, note,
-                             followup, found_at) VALUES (?,?,?,?,?,?,?,?,?,?)""",
+                             followup, found_at, url_norm) VALUES (?,?,?,?,?,?,?,?,?,?,?)""",
                           (job["id"], job["company"], p["name"], p["headline"], p["url"], p["kind"], p["rank"],
-                           p["note"], p["followup"], now_iso()))
+                           p["note"], p["followup"], now_iso(), safeguards.norm_profile_url(p["url"])))
             db.set_job(c, job["id"], status="ready", resume_docx=res["docx"], resume_pdf=pdf_path,
                        cover_letter=res["cover_letter"], interview_prep=json.dumps(res["interview_prep"]),
                        gaps=json.dumps(res["gaps"]), llm_used=res["llm"] or "none (keyword mode)",
@@ -237,6 +261,29 @@ def prepare(limit=None, ids=None):
     referrals.close_browser()
 
 
+def contacted_elsewhere(c, job_id):
+    """Profile URLs already lined up for a DIFFERENT role (sent or not) - they don't get a second note."""
+    if not safeguards.settings().get("referral_dedup", True):
+        return set()
+    return {r["url_norm"] for r in db.rows(c, "SELECT DISTINCT url_norm FROM contacts WHERE job_id<>? AND url_norm IS NOT NULL",
+                                           (job_id,))}
+
+
+def notion_tiers():
+    """Fill Notion's 'Tier used' column for applications already in the tracker."""
+    import notion_sync
+    c = db.conn()
+    rows = db.rows(c, "SELECT * FROM jobs WHERE notion_page_id IS NOT NULL")
+    n = 0
+    for j in rows:
+        try:
+            if notion_sync.set_tier_used(j["notion_page_id"], j):
+                n += 1
+        except Exception as e:
+            log(f"  {j['company']}: {e}")
+    log(f"Tier used filled on {n} of {len(rows)} tracker row(s)")
+
+
 def submit_approved():
     import submit, notion_sync
     if not feature("auto_fill"):
@@ -247,13 +294,24 @@ def submit_approved():
     if not jobs:
         log("nothing approved to submit")
         return
+    cfg = load_config()
+    clear = []
     for j in jobs:
+        guard = safeguards.check(c, j, cfg)
+        if guard and guard["level"] == "block":
+            # something else went to this company/platform after you approved - back to Review with the reason
+            db.set_job(c, j["id"], status="ready", lock_note=guard["message"], status_note=guard["message"])
+            db.event(c, j["id"], "safeguard_hold", guard["message"])
+            log(f"  held back {j['company']} - {guard['message']}")
+            continue
         try:
             j["cover_letter_pdf"] = json.loads(j.get("edits_log") or "{}").get("cover_letter_pdf")
         except Exception:
             pass
-        db.set_job(c, j["id"], status="submitting")
+        db.set_job(c, j["id"], status="submitting", version_sent=safeguards.version_label(j["family"], j["tier"]))
+        clear.append(j)
     c.commit()
+    jobs = clear
     for job_id, status, note in submit.run(jobs, log=log):
         fields = {"status": status, "status_note": note}
         if status == "submitted":
@@ -273,6 +331,10 @@ def record_in_notion(job_id):
     job = db.rows(c, "SELECT * FROM jobs WHERE id=?", (job_id,))[0]
     if job.get("notion_page_id"):
         notion_sync.update_stage(job["notion_page_id"], "Applied", applied_on=job.get("applied_at") or now_iso())
+        try:
+            notion_sync.set_tier_used(job["notion_page_id"], job)
+        except Exception:
+            pass
         return
     contacts = db.rows(c, "SELECT * FROM contacts WHERE job_id=? ORDER BY rank", (job_id,))
     try:
@@ -295,7 +357,8 @@ def backfill():
     c = db.conn()
     for r in rows:
         fam = triage.family_of(r["position"] or " ".join(r["positions"]), cfg) or "dev"
-        people = referrals.find(r["company"], r["position"] or (r["positions"] or ["role"])[0], fam, log=log)
+        people = referrals.find(r["company"], r["position"] or (r["positions"] or ["role"])[0], fam, log=log,
+                                exclude=contacted_elsewhere(c, "notion:" + r["page_id"]))
         if not people:
             continue
         for p in people:
@@ -303,6 +366,8 @@ def backfill():
                          rank, note, followup, found_at) VALUES (?,?,?,?,?,?,?,?,?,?,?)""",
                       ("notion:" + r["page_id"], r["page_id"], r["company"], p["name"], p["headline"], p["url"],
                        p["kind"], p["rank"], p["note"], p["followup"], now_iso()))
+            c.execute("UPDATE contacts SET url_norm=? WHERE job_id=? AND url=?",
+                      (safeguards.norm_profile_url(p["url"]), "notion:" + r["page_id"], p["url"]))
         c.commit()
         try:
             notion_sync.write_connections(r["page_id"], people)
@@ -337,6 +402,8 @@ if __name__ == "__main__":
         retriage()
     elif cmd == "backfill":
         backfill()
+    elif cmd == "tiers":
+        notion_tiers()
     elif cmd == "all":
         scan()
         prepare()

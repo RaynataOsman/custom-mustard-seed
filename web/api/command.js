@@ -1,0 +1,19 @@
+const { rpc, send, guarded, body } = require("./_lib");
+
+const ACTIONS = ["approve", "retry", "skip", "reopen", "done"];
+const RUNS = ["scan", "prepare", "submit", "all", "backfill", "tiers", "retriage"];
+
+module.exports = guarded(async (req, res) => {
+  if (req.method !== "POST") return send(res, 405, { ok: false });
+  const b = await body(req);
+  let payload;
+  if (b.kind === "job_action" && ACTIONS.includes(b.action) && /^[\w-]{4,40}$/.test(b.id || ""))
+    payload = { id: b.id, action: b.action, note: String(b.note || "").slice(0, 500), override: !!b.override };
+  else if (b.kind === "contact_sent" && Number.isInteger(b.id)) payload = { id: b.id };
+  else if (b.kind === "approve_all") payload = { min_score: Number(b.min_score) || 60 };
+  else if (b.kind === "run" && RUNS.includes(b.job) && (b.arg == null || /^[\w-]{4,40}$/.test(b.arg)))
+    payload = { job: b.job, arg: b.arg ?? null };
+  else return send(res, 400, { ok: false, error: "unknown command" });
+  const id = await rpc("ms_add_command", { p_kind: b.kind, p_payload: payload });
+  send(res, 200, { ok: true, id });
+});
