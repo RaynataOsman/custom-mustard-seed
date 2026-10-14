@@ -205,7 +205,7 @@ function renderRuns() {
   const cmds = STATE?.commands || [];
   const boards = STATE?.overview?.v?.boards || [];
   const btn = (job, label, cls = "") => `<button class="btn ${cls}" onclick="runCmd('${job}')">${label}</button>`;
-  frame(`<div class="card"><div class="row">${btn("all", "Find + prepare now", "btn-primary")}${btn("scan", "Find new roles")}${btn("prepare", "Prepare best roles")}${btn("submit", "Submit approved", "btn-green")}${btn("backfill", "Referral backfill")}${btn("tiers", "Fill Notion Tier used")}</div>
+  frame(`<div class="card"><div class="row">${btn("all", "Find + prepare now", "btn-primary")}${btn("scan", "Find new roles")}${btn("prepare", "Prepare best roles")}${btn("submit", "Submit approved", "btn-green")}${btn("backfill", "Referral backfill")}${btn("tiers", "Fill Notion Tier used")}${btn("sweep", "Apply platform rule to Review")}</div>
    <p class="small muted" style="margin:8px 0 0">Runs happen on your PC. It picks the command up within about 15 seconds while the dashboard is open there.</p></div>
    ${runs.map((r) => `<div class="card"><div class="row between"><b>${esc(r.job)} ${esc(r.arg || "")}</b><span class="badge ${/fail/.test(r.status) ? "b-bad" : r.status === "running" ? "b-warn" : "b-ok"}">${esc(r.status)}</span></div><div class="small muted">${esc((r.started || "").replace("T", " "))}</div>${r.tail ? `<details ${r.status === "running" ? "open" : ""}><summary>Log</summary><pre class="log">${esc(r.tail)}</pre></details>` : ""}</div>`).join("") || empty("No runs since the PC dashboard started.")}
    <div class="card"><b>Recent commands from here</b>${cmds.slice(0, 12).map((c) => `<div class="row between small" style="border-top:1px solid var(--line);padding:6px 0"><span>${esc(c.kind)} ${esc(c.payload?.action || c.payload?.job || "")}</span><span class="muted">${esc(c.status)}${c.result && c.result.ok === false ? " - " + esc(c.result.error) : ""}</span></div>`).join("") || `<p class="small muted">None yet.</p>`}</div>
@@ -229,7 +229,7 @@ async function act(id, action, note, override) {
 function retry(id) { const n = prompt("What should change? (e.g. 'lean on Shopify more', 'use the admin resume', 'shorter cover letter')"); if (n !== null) act(id, "retry", n); }
 async function sent(id) { await command({ kind: "contact_sent", id }, "Marked sent"); }
 async function approveAll() { await command({ kind: "approve_all", min_score: +$("#ms").value }, "Approve all"); }
-async function runCmd(job, arg) { await command({ kind: "run", job, arg: arg || null }, arg ? "Prepare" : ({ all: "Find + prepare", scan: "Find", prepare: "Prepare", submit: "Submit approved", backfill: "Referral backfill", tiers: "Notion Tier used" }[job] || job)); if (arg) PENDING[arg] = "Preparing on your PC..."; }
+async function runCmd(job, arg) { await command({ kind: "run", job, arg: arg || null }, arg ? "Prepare" : ({ all: "Find + prepare", scan: "Find", prepare: "Prepare", submit: "Submit approved", backfill: "Referral backfill", tiers: "Notion Tier used", sweep: "Platform rule" }[job] || job)); if (arg) PENDING[arg] = "Preparing on your PC..."; }
 function copyNote(id) { copyText(NOTES[id] || ""); }
 function copyText(t) { navigator.clipboard.writeText(t).then(() => toast("Copied"), () => toast("Copy failed - select the text instead")); }
 async function signOut() { await fetch("/api/login", { method: "DELETE" }); showLogin(); }

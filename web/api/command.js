@@ -1,7 +1,7 @@
 const { rpc, send, guarded, body } = require("./_lib");
 
 const ACTIONS = ["approve", "retry", "skip", "reopen", "done"];
-const RUNS = ["scan", "prepare", "submit", "all", "backfill", "tiers", "retriage"];
+const RUNS = ["scan", "prepare", "submit", "all", "backfill", "tiers", "retriage", "sweep"];
 
 module.exports = guarded(async (req, res) => {
   if (req.method !== "POST") return send(res, 405, { ok: false });

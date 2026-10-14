@@ -161,10 +161,10 @@ def check(c, job, cfg=None):
             best = max(other_fam, key=lambda o: o.get("score") or 0)
             if (job.get("score") or 0) > (best.get("score") or 0):
                 return {"level": "wins", "rule": "platform", "losers": [o["id"] for o in other_fam],
-                        "message": f"Platform rule: this is your strongest match at {job.get('company')} "
-                                   f"(fit {int(job.get('score') or 0)} vs {int(best.get('score') or 0)}), so "
-                                   f"the {', '.join(sorted({version_label(o['family'], o['tier']) for o in other_fam}))} "
-                                   "role(s) there were skipped."}
+                        "message": f"Platform rule: strongest match at {job.get('company')} "
+                                   f"(fit {int(job.get('score') or 0)} vs {int(best.get('score') or 0)}) - the "
+                                   f"{', '.join(sorted({version_label(o['family'], o['tier']) for o in other_fam}))} "
+                                   f"role(s) there ({len(other_fam)}) are skipped so they only see one profile."}
             return {"level": "block", "rule": "platform",
                     "message": f"Platform rule: a stronger {version_label(best['family'], best['tier'])} match is "
                                f"already lined up at {job.get('company')} ({best['title']}, fit "
@@ -182,3 +182,36 @@ def check(c, job, cfg=None):
 
 def note_for(res):
     return res["message"] if res and res["level"] in ("warn", "block", "info", "wins") else None
+
+
+def sweep(c, log=print, cfg=None):
+    """Apply the platform rule to roles already waiting in Review (prepared before the rule existed):
+    per platform, keep the family with the best fit (or the one already sent) and skip the others."""
+    s = settings(cfg)
+    if not (s.get("enabled", True) and s.get("platform_rule", True)):
+        return 0
+    rows = [dict(r) for r in c.execute(f"""SELECT id, title, company, company_norm, family, tier, status, score
+                FROM jobs WHERE status IN ({','.join('?' * len(ACTIVE))}) AND family IS NOT NULL""", ACTIVE).fetchall()]
+    by = {}
+    for r in rows:
+        if is_platform(r, s):
+            by.setdefault(r["company_norm"] or norm_company(r["company"]), []).append(r)
+    skipped = 0
+    for name, group in by.items():
+        fams = {r["family"] for r in group}
+        if len(fams) < 2:
+            continue
+        sent = [r for r in group if r["status"] in SENT]
+        keep = sent[0]["family"] if sent else max(group, key=lambda r: r["score"] or 0)["family"]
+        company = group[0]["company"]
+        for r in group:
+            if r["family"] != keep and r["status"] in ("ready", "retry"):
+                msg = (f"Platform rule: {company} gets your {FAMILY_LABEL.get(keep, keep)} profile only "
+                       f"({'already sent' if sent else 'strongest match'}) - this {version_label(r['family'], r['tier'])} role was skipped")
+                c.execute("UPDATE jobs SET status='skipped', status_note=?, lock_note=?, updated_at=datetime('now','localtime') "
+                          "WHERE id=?", (msg, msg, r["id"]))
+                skipped += 1
+        log(f"  {company}: keeping {FAMILY_LABEL.get(keep, keep)}, skipped "
+            f"{sum(1 for r in group if r['family'] != keep and r['status'] in ('ready', 'retry'))} other-family role(s)")
+    c.commit()
+    return skipped

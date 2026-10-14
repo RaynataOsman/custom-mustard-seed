@@ -221,6 +221,10 @@ def job_action(job_id, body):
         guard = safeguards.check(c, job[0])
         if guard and guard["level"] == "block" and not body.get("override"):
             return {"ok": False, "error": guard["message"], "lock": guard}
+        if guard and guard["level"] == "wins":
+            for lid in guard["losers"]:
+                db.set_job(c, lid, status="skipped", lock_note=guard["message"],
+                           status_note=f"Platform rule: you approved {job[0]['title']} at {job[0]['company']} instead")
         db.set_job(c, job_id, status="approved", lock_note=safeguards.note_for(guard))
     elif a == "retry":
         db.set_job(c, job_id, status="retry", retry_note=note or None)
@@ -250,10 +254,17 @@ def approve_all(body):
     n = held = 0
     for j in db.rows(c, "SELECT * FROM jobs WHERE status='ready' AND ai_ban=0 AND geo_ok=1 AND score>=? "
                         "ORDER BY score DESC", (ms,)):
+        cur = db.rows(c, "SELECT status FROM jobs WHERE id=?", (j["id"],))
+        if not cur or cur[0]["status"] != "ready":
+            continue  # skipped earlier in this loop by the platform rule
         guard = safeguards.check(c, j)
         if guard and guard["level"] in ("warn", "block"):
             held += 1
             continue
+        if guard and guard["level"] == "wins":
+            for lid in guard["losers"]:
+                db.set_job(c, lid, status="skipped", lock_note=guard["message"],
+                           status_note=f"Platform rule: {j['title']} at {j['company']} was approved instead")
         db.set_job(c, j["id"], status="approved", lock_note=safeguards.note_for(guard))
         c.commit()  # later roles in this loop must see this one as approved
         n += 1

@@ -58,3 +58,12 @@ c.commit()
 c2 = db.conn()
 assert db.rows(c2, "SELECT url_norm FROM contacts")[0]["url_norm"] == "li:jane"
 print("safeguards ok")
+
+# sweep: roles prepared before the rule existed
+add("s1", "Pearl Talent", "admin", "J", "ready", score=70)
+add("s2", "Pearl Talent", "admin", "HM", "ready", score=50)
+add("s3", "Pearl Talent", "dev", "S", "ready", score=60)
+assert sg.sweep(c, log=lambda *a: None, cfg=CFG) >= 1
+st = {r["id"]: r["status"] for r in db.rows(c, "SELECT id, status FROM jobs WHERE id IN ('s1','s2','s3')")}
+assert st == {"s1": "ready", "s2": "ready", "s3": "skipped"}, st
+print("sweep ok")

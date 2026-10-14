@@ -5,6 +5,7 @@
   submit     apply to the roles you APPROVED in the dashboard (visible browser)
   backfill   find referral contacts for tracker rows whose Connections are blank
   tiers      fill the Notion "Tier used" column for rows already in the tracker
+  sweep      apply the one-family-per-platform rule to roles already waiting in Review
   all        scan + prepare   (this is what the scheduled task runs; it never submits)
   board <name>   scan one board only (for testing)
 """
@@ -197,6 +198,12 @@ def prepare(limit=None, ids=None):
         jobs = db.rows(c, """SELECT * FROM jobs WHERE status IN ('retry') OR (status='new' AND score>=?)
                              ORDER BY (status='retry') DESC, score DESC, found_at DESC LIMIT ?""",
                        (cfg["resume"]["min_score_to_prepare"], limit))
+    try:
+        n = safeguards.sweep(c, log=log, cfg=cfg)
+        if n:
+            log(f"platform rule: {n} role(s) already in Review skipped (one family per platform)")
+    except Exception as e:
+        log(f"platform sweep skipped: {e}")
     log(f"preparing {len(jobs)} role(s)")
     for job in jobs:
         try:
@@ -404,6 +411,9 @@ if __name__ == "__main__":
         backfill()
     elif cmd == "tiers":
         notion_tiers()
+    elif cmd == "sweep":
+        n = safeguards.sweep(db.conn(), log=log)
+        log(f"platform rule applied to roles already in Review: {n} skipped")
     elif cmd == "all":
         scan()
         prepare()

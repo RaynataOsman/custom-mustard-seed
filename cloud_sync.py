@@ -24,7 +24,7 @@ STATUS = {"state": "off", "last_push": None, "last_error": None, "pushed": 0, "c
 _STOP = threading.Event()
 _KICK = threading.Event()
 ACTIVE = ("ready", "approved", "retry", "preparing", "submitting", "needs_you", "failed")
-RUN_JOBS = {"scan", "prepare", "submit", "all", "backfill", "tiers", "retriage"}
+RUN_JOBS = {"scan", "prepare", "submit", "all", "backfill", "tiers", "retriage", "sweep"}
 MAX_FILE_BYTES = 900_000
 PRELOAD_READY = 20
 
