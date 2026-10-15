@@ -31,11 +31,12 @@ NEW_BOARDS = [
     {"name": "Dubai Careers (government)", "kind": "render", "enabled": True, "track": "relocation", "accept_countries": GULF,
      "url": "https://jobs.dubaicareers.ae/careersection/dubaicareers/jobsearch.ftl?lang=en",
      "link_pattern": r"jobdetail\.ftl\?job=\d+", "url_strip": r"&tz=.*$", "same_host": True, "max_details": 12},
-    {"name": "RAK Government careers", "kind": "render", "enabled": True, "track": "relocation", "accept_countries": GULF,
+    {"name": "RAK Government careers", "kind": "render", "enabled": False, "track": "relocation", "accept_countries": GULF,
+     "why_off": "Search page shows no job links to the scanner yet (SAP SuccessFactors) - check by hand",
      "url": "https://careers.rak.ae/search/?q={q}", "link_pattern": r"careers\.rak\.ae/job/", "max_details": 10},
     {"name": "Make it in Germany", "kind": "render", "enabled": True, "track": "relocation", "sponsor_board": True,
      "url": "https://www.make-it-in-germany.com/en/working-in-germany/job-listings?tx_solr%5Bq%5D={q}",
-     "link_pattern": r"job-listings/job/job-[\w.-]+-S$", "max_details": 12},
+     "link_pattern": r"job-listings/job/job-[\w.-]+-S$", "max_details": 12, "link_title": True},
     {"name": "GovAI (UK)", "kind": "render", "enabled": True, "track": "relocation", "sponsor_board": True,
      "url": "https://www.governance.ai/opportunities", "link_pattern": r"governance\.ai/opportunities/[a-z0-9-]+$",
      "max_details": 8},
@@ -54,7 +55,9 @@ UPDATES = {
                         "urls": ["https://www.jobbank.gc.ca/jobsearch/jobsearch?searchstring={q}&fskl=101010",
                                  "https://www.jobbank.gc.ca/jobsearch/jobsearch?searchstring={q}&fskl=101020"],
                         "link_pattern": r"/jobsearch/jobposting/\d+", "url_strip": r";jsessionid=[^?]*|\?source=searchresults$",
-                        "max_details": 12, "why_off": None},
+                        "any_link_text": True, "queries": ["web developer", "software developer", "virtual assistant",
+                                                           "administrative assistant", "customer service representative"],
+                        "max_details": 15, "why_off": None},
     "Bayt (Gulf)": {"accept_countries": GULF},
     "GulfTalent": {"accept_countries": GULF},
 }
@@ -155,5 +158,29 @@ def main():
     print("config updated:\n - " + "\n - ".join(done or ["nothing to add"]))
 
 
-if __name__ == "__main__":
+if __name__ == "__main__" and "--fixes" not in sys.argv:
     main()
+
+
+# second pass (same day): fixes found while test-scanning the new boards
+FIXES = {
+    "Make it in Germany": {"link_title": True},
+    "Canada Job Bank (LMIA)": {"any_link_text": True, "max_details": 15,
+                               "queries": ["web developer", "software developer", "virtual assistant",
+                                           "administrative assistant", "customer service representative"]},
+    "RAK Government careers": {"enabled": False,
+                               "why_off": "Search page shows no job links to the scanner yet (SAP SuccessFactors) - check by hand"},
+}
+
+
+def fixes():
+    cfg = json.loads(CFG.read_text(encoding="utf-8-sig"))
+    for b in cfg["boards"]:
+        for k, v in FIXES.get(b["name"], {}).items():
+            b[k] = v
+    CFG.write_text(json.dumps(cfg, indent=2), encoding="utf-8")
+    print("board fixes applied")
+
+
+if __name__ == "__main__" and "--fixes" in sys.argv:
+    fixes()

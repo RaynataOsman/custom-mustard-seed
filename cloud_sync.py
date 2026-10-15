@@ -78,6 +78,16 @@ def _rows_to_sync(c, s):
     return rows
 
 
+def _salary(v):
+    """'USD 100.0-None MONTH' -> 'USD 100 MONTH'."""
+    if not v:
+        return v
+    import re
+    v = re.sub(r"(\d)\.0\b", r"\1", str(v))
+    v = re.sub(r"-\s*None|None\s*-", "", v)
+    return re.sub(r"\s+", " ", v).strip() or None
+
+
 def _payload(c, j):
     import safeguards
     ed = {}
@@ -106,7 +116,7 @@ def _payload(c, j):
         "family": j.get("family"), "tier": j.get("tier"),
         "version": j.get("version_sent") or safeguards.version_label(j.get("family"), j.get("tier")),
         "geo_ok": j.get("geo_ok"), "geo_reason": (j.get("geo_reason") or "")[:300], "employer_type": j.get("employer_type"),
-        "salary": j.get("salary"), "employment_type": j.get("employment_type"), "posted_at": j.get("posted_at"),
+        "salary": _salary(j.get("salary")), "employment_type": j.get("employment_type"), "posted_at": j.get("posted_at"),
         "found_at": j.get("found_at"), "applied_at": j.get("applied_at"), "ai_ban": j.get("ai_ban"),
         "in_notion": bool(j.get("notion_page_id")), "lock": lock, "is_platform": safeguards.is_platform(j),
         "cover_letter": j.get("cover_letter") if full else None,

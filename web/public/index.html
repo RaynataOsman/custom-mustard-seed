@@ -159,7 +159,7 @@ function jobCard(j, mode) {
   ${full && j.cover_letter ? `<details><summary>Cover letter</summary><pre>${esc(j.cover_letter)}</pre></details>` : ""}
   ${full && (j.interview_prep || []).length ? `<details><summary>How to walk into the interview (${j.interview_prep.length})</summary><ul class="small">${j.interview_prep.map((x) => `<li>${esc(x)}</li>`).join("")}</ul>${(j.gaps || []).length ? `<p class="small" style="margin:8px 0 0"><b>Asked for, not on your resume:</b></p><ul class="small">${j.gaps.map((x) => `<li>${esc(x)}</li>`).join("")}</ul>` : ""}</details>` : ""}
   ${full ? `<details ${mode === "applied" ? "" : ""}><summary>Referral contacts (${(j.contacts || []).length})</summary>${contactsHTML(j)}</details>` : ""}
-  ${j.fit_line ? `<p class="small muted" style="margin:8px 0 0">${esc(j.fit_line)}</p>` : ""}
+  ${j.fit_line && j.fit_line !== j.status_note ? `<p class="small muted" style="margin:8px 0 0">${esc(j.fit_line)}</p>` : ""}
   <details><summary>Job description</summary><pre>${esc(j.description || "")}</pre></details>
  </article>`;
 }

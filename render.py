@@ -325,6 +325,12 @@ def harvest(board, cfg, log, title_ok, known=frozenset()):
                         continue
                     if not link_re.search(href):
                         continue
+                    if board.get("any_link_text"):
+                        # link text isn't the title on this board (Job Bank cards) - read every matching
+                        # posting and let the page's own title decide
+                        if not (follow_re and follow_re.search(href)) and href.rstrip("/") != u.rstrip("/"):
+                            found.setdefault(href, {"title": ""})
+                        continue
                     if len(text) < 6 or _JUNK_TEXT.match(text) or not title_ok(text):
                         # link text is "Apply" / "7 days ago" etc. - the job title is often in the URL itself
                         st = _slug_title(href)
@@ -352,13 +358,16 @@ def harvest(board, cfg, log, title_ok, known=frozenset()):
                     lds = _jsonld_jobs(page)
                     if lds:
                         jj = _from_jsonld(lds[0])
-                        jj["title"] = jj["title"] or j["title"]
+                        jj["title"] = (j["title"] if board.get("link_title") and j["title"] else None) or jj["title"] or j["title"]
                     else:
                         body = page.inner_text("body")[:20000]
                         h1 = page.eval_on_selector("h1", "e => e.innerText") if page.query_selector("h1") else ""
                         site = page.eval_on_selector('meta[property="og:site_name"]', "e => e.content") \
                             if page.query_selector('meta[property="og:site_name"]') else ""
-                        jj = {"title": ascii_clean(h1 or j["title"]).strip(), "company": "", "location": "",
+                        if board.get("any_link_text") and not h1:
+                            h1 = page.title().split("|")[0].split(" - ")[0]
+                        title = (j["title"] if board.get("link_title") and j["title"] else None) or h1 or j["title"]
+                        jj = {"title": ascii_clean(title).strip(), "company": "", "location": "",
                               "description": body, "site": site}
                         m = re.search(r"(?im)^\s*(?:company|employer|hiring company)\s*[:\-]\s*(.+)$", body)
                         if m:
