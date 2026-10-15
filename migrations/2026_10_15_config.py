@@ -86,8 +86,8 @@ def main():
     sg.setdefault("platforms", safeguards.DEFAULT_PLATFORMS)
 
     cl = cfg.setdefault("cloud", {})
-    for k, v in {"enabled": True, "supabase_url": "https://dkjfqflzcuajrsbxrrhv.supabase.co",
-                 "anon_key": "sb_publishable_dzTYW_gZaGsNmv_vDjsEbA_Dej7bx3F", "web_url": "", "found_limit": 150}.items():
+    for k, v in {"enabled": True, "supabase_url": "https://iltybjpqtcrbedtcoedz.supabase.co",
+                 "anon_key": "sb_publishable_0dhfm6Ka-0apSyA40pFnEQ_pGKJaPB_", "web_url": "", "found_limit": 150}.items():
         if k not in cl:
             cl[k] = v
             done.append(f"cloud.{k}")

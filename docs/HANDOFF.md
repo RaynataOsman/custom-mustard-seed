@@ -322,3 +322,24 @@ A workable hybrid:
 
 Estimated a few days of work for about 60% of the features. The feature switches already let each person
 run only the parts they need.
+
+## 5c. 15 Oct additions
+
+- **Safeguards** (`safeguards.py`, Settings > Safeguards): 90-day company lock (warn or skip when a company
+  already has a different resume version), one family per agency/platform (strongest match wins;
+  `pipeline.py sweep` applies it to roles already in Review), version labels like `HM_ Dev` saved as
+  `jobs.version_sent`, Notion **Tier used** column, and referral dedup (`referrals.find(exclude=...)`).
+- **Online dashboard**: https://mustard-seed-online.vercel.app (Vercel project `mustard-seed-online`,
+  root `web/`, deployed from branch `Own_JP`). Supabase project `iltybjpqtcrbedtcoedz` (owner's own
+  account) holds `ms_*` tables, closed by RLS and reached only through the token-checked functions in
+  `cloud/supabase.sql`. `cloud_sync.py` runs inside the PC dashboard: pushes roles/runs/boards, pulls
+  commands every ~15 s, uploads PDFs for approved / needs-you / top-20 ready roles and fetches any
+  other PDF on demand. Keys: `CLOUD_TOKEN` (shared secret, also Vercel env `MS_TOKEN`) and
+  `CLOUD_PASSWORD` (online sign-in) in keys.env. Vercel env: SUPABASE_URL, SUPABASE_ANON_KEY,
+  MS_TOKEN, SESSION_SECRET.
+- **Boards**: Vacancy Mail, Zimbajob, Tanqeeb UAE, Dubai Careers, Make it in Germany, GovAI, Canada Job
+  Bank (LMIA), Ruby on Remote and NaukriGulf on; RAK Government off. Board options added:
+  `accept_countries`, `sponsor_board`, `q_slug`, `url_strip`, `link_title`, `any_link_text`.
+  UK sponsor register (`sponsors.py`) checked on the relocation track.
+- Somewhere.com has no public job list (its /roles pages are employer marketing); its roles arrive by
+  email and via HireZar.
