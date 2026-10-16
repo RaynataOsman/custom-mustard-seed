@@ -17,3 +17,6 @@ peek.py
 probe.py
 probe_all.py
 *.zip
+
+.vercel
+.env*.local

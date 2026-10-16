@@ -1,0 +1,5 @@
+# Only the online dashboard is deployed. Everything else (database, keys, browser profiles, resumes) stays on the PC.
+/*
+!/web
+/web/.env*
+/web/.vercel
