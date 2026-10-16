@@ -4,9 +4,16 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <meta name="robots" content="noindex,nofollow">
-<meta name="theme-color" content="#f7f5ef">
+<meta name="theme-color" content="#e4b83e">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Mustard Seed">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
 <title>Mustard Seed</title>
-<link rel="icon" href="/seed.svg">
+<link rel="icon" href="/favicon.ico" sizes="any">
+<link rel="icon" href="/seed.svg" type="image/svg+xml">
+<link rel="apple-touch-icon" href="/apple-touch-icon.png">
+<link rel="manifest" href="/manifest.webmanifest">
 <style>
 :root{color-scheme:light;--canvas:#f7f5ef;--surface:#fffefa;--subtle:#efede5;--ink:#292c24;--muted:#686c5e;--line:#dedfd4;--accent:#e4b83e;--accent-hover:#d2a527;--accent-ink:#352907;--green:#34624a;--green-ink:#fff;--warn-bg:#fff7e6;--warn-ink:#8a5a00;--warn-line:#f3d9a4;--bad-bg:#fdecec;--bad-ink:#9b1c1c;--bad-line:#f5c2c2;--ok-bg:#e9f4ec;--ok-ink:#25573a;--shadow:0 3px 16px #3238230a}
 @media (prefers-color-scheme:dark){:root:not([data-theme=light]){color-scheme:dark;--canvas:#171b17;--surface:#202620;--subtle:#2b322a;--ink:#eeefe6;--muted:#afb8a8;--line:#3c4539;--accent:#e4b83e;--accent-hover:#f0c951;--accent-ink:#302506;--green:#3f7a5b;--warn-bg:#3a2c0f;--warn-ink:#f6d58a;--warn-line:#6b5320;--bad-bg:#3d1515;--bad-ink:#f8b4b4;--bad-line:#7a2a2a;--ok-bg:#20372a;--ok-ink:#a6d6b5;--shadow:0 3px 16px #0000001a}}
@@ -16,7 +23,7 @@ html{background:var(--canvas)}
 body{margin:0;background:var(--canvas);color:var(--ink);font:14px/1.55 "Segoe UI",system-ui,-apple-system,sans-serif;-webkit-text-size-adjust:100%}
 a{color:inherit}
 button,input,textarea,select{font:inherit;color:inherit}
-.shell{max-width:980px;margin:0 auto;padding:20px 16px 80px}
+.shell{max-width:980px;margin:0 auto;padding:max(20px,env(safe-area-inset-top)) 16px 80px}
 header{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:12px;padding-bottom:16px;border-bottom:1px solid var(--line);margin-bottom:16px}
 .brand{display:flex;align-items:center;gap:10px}.brand img{width:38px;height:38px}.brand h1{margin:0;font-size:20px;letter-spacing:-.5px;line-height:1.2}.brand p{margin:0;font-size:12px;color:var(--muted)}
 .pc{display:inline-flex;align-items:center;gap:6px;font-size:12px;color:var(--muted)}.dot{width:9px;height:9px;border-radius:50%;background:#b8b8ad}.dot.on{background:#3f9a63}.dot.off{background:#c0492f}
@@ -40,14 +47,22 @@ pre{white-space:pre-wrap;word-break:break-word;font:12.5px/1.5 inherit;backgroun
 pre.log{font-family:ui-monospace,Consolas,monospace;font-size:11.5px;background:#1d211c;color:#e8eadf}
 ul{margin:6px 0 0;padding-left:18px}
 .contact{border-top:1px solid var(--line);padding:10px 0}.contact:first-child{border-top:0}
-input[type=password],input[type=number],textarea{width:100%;background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:10px;min-height:42px}
+input[type=password],input[type=number],input[type=search],textarea{width:100%;background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:10px;min-height:42px}
+select{background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:8px 10px;min-height:40px;max-width:100%}
 .login{max-width:360px;margin:12vh auto 0}
 .empty{text-align:center;color:var(--muted);padding:34px 14px}
 .metrics{display:grid;grid-template-columns:repeat(2,1fr);gap:8px;margin-bottom:12px}@media(min-width:700px){.metrics{grid-template-columns:repeat(4,1fr)}}
 .metric{background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:10px 12px;cursor:pointer;text-align:left}.metric strong{display:block;font-size:22px;line-height:1.2}
-#toast{position:fixed;left:50%;bottom:22px;transform:translateX(-50%);background:var(--ink);color:var(--canvas);padding:10px 14px;border-radius:10px;font-size:13px;max-width:92vw;box-shadow:var(--shadow);z-index:9;display:none}
+.filters{display:grid;gap:8px}
+.chips{display:flex;gap:6px;overflow-x:auto;scrollbar-width:none;padding-bottom:2px}.chips::-webkit-scrollbar{display:none}
+.chip{white-space:nowrap;border:1px solid var(--line);background:var(--surface);border-radius:99px;padding:6px 12px;font-size:12.5px;cursor:pointer;min-height:36px}
+.chip.on{background:var(--accent);border-color:var(--accent);color:var(--accent-ink);font-weight:650}.chip .c{opacity:.7;margin-left:4px}
+.selects{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:6px}@media(min-width:700px){.selects{grid-template-columns:repeat(5,minmax(0,1fr))}}
+.selects select{width:100%}
+#toast{position:fixed;left:50%;bottom:calc(22px + env(safe-area-inset-bottom));transform:translateX(-50%);background:var(--ink);color:var(--canvas);padding:10px 14px;border-radius:10px;font-size:13px;max-width:92vw;box-shadow:var(--shadow);z-index:9;display:none}
 :focus-visible{outline:3px solid var(--accent);outline-offset:2px}
 .sr{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0)}
+.brow{display:flex;justify-content:space-between;gap:8px;align-items:center;border-top:1px solid var(--line);padding:8px 0;font-size:13px}.brow:first-child{border-top:0}
 </style>
 </head>
 <body>
@@ -58,10 +73,83 @@ input[type=password],input[type=number],textarea{width:100%;background:var(--sur
 <script>
 const $ = (s, el = document) => el.querySelector(s);
 const esc = (s) => (s == null ? "" : String(s)).replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
-let NOTES = {}, TAB = (location.hash.slice(1) || "review"), STATE = null, JOBS = [], PENDING = {}, CMD_WATCH = {};
-const TABS = [["review", "Review"], ["needs", "Needs you"], ["applied", "Applied"], ["referrals", "Referrals"], ["found", "Found"], ["runs", "Runs"]];
+let NOTES = {}, TAB = (location.hash.slice(1) || "review"), STATE = null, JOBS = [], PENDING = {}, CMD_WATCH = {}, DETAIL = {}, SHOWN = {}, LOADED_FOR = null;
+const TABS = [["review", "Review"], ["needs", "Needs you"], ["applied", "Applied"], ["referrals", "Referrals"], ["found", "Found"], ["boards", "Boards"], ["runs", "Runs"]];
 const STATUS_FOR = { review: "ready,approved,retry,preparing", needs: "needs_you,failed", applied: "submitted,submitting", referrals: "submitted,ready,approved,needs_you", found: "new" };
+const PAGE = 30;
+const FILTER_TABS = ["review", "found", "applied", "needs"];
 
+// ---------- quick categories (same rules as the PC dashboard) ----------
+const DAY = 864e5;
+const when = (j) => Date.parse((j.posted_at || j.found_at || "").slice(0, 10)) || 0;
+const LENSES = [
+  ["all", "All", () => true],
+  ["best", "Best match", (j) => (j.score || 0) >= 70 && j.geo_ok == 1],
+  ["open_sa", "Open to SA", (j) => j.geo_ok == 1],
+  ["fresh", "Fresh (3 days)", (j) => when(j) >= Date.now() - 3 * DAY],
+  ["contract", "Contract / part-time", (j) => /contract|part|freelance/i.test(j.employment_type || "") || /stackable/i.test(j.score_reasons || "")],
+  ["overseas", "Overseas employer", (j) => j.employer_type === "overseas_direct" || j.employer_type === "overseas_platform"],
+  ["referrals", "Has referrals", (j) => (j.contacts || []).length > 0],
+  ["long_shot", "Long shots", (j) => (j.score || 0) < 50 || j.geo_ok == null],
+  ["ai_ban", "Bans AI", (j) => !!j.ai_ban],
+];
+const FAMILY = { dev: "Developer", design: "UX/UI design", admin: "Admin / VA", sales: "Sales", ecommerce: "E-commerce", bookkeeping: "Bookkeeping" };
+const EMPLOYER = { overseas_direct: "Overseas, direct", overseas_platform: "Overseas platform", sa_local: "SA local", sa_aggregator: "SA agency", unknown: "Unknown" };
+const SORTS = [["fit", "Best fit"], ["newest", "Newest posted"], ["found", "Recently found"], ["company", "Company A-Z"]];
+
+function fkey() { return "ms-f-" + TAB; }
+function getF() { try { return Object.assign({ lens: "all", q: "", family: "", tier: "", employer: "", board: "", sort: "fit" }, JSON.parse(localStorage.getItem(fkey()) || "{}")); } catch { return { lens: "all", q: "", family: "", tier: "", employer: "", board: "", sort: "fit" }; } }
+function setF(patch) { const f = Object.assign(getF(), patch); try { localStorage.setItem(fkey(), JSON.stringify(f)); } catch {} SHOWN[TAB] = PAGE; return f; }
+
+function applyFilters(list, f, skipLens) {
+  const q = (f.q || "").trim().toLowerCase();
+  const terms = q ? q.split(/\s+/) : [];
+  const lens = (LENSES.find((l) => l[0] === f.lens) || LENSES[0])[2];
+  let out = list.filter((j) => {
+    if (!skipLens && !lens(j)) return false;
+    if (f.family && j.family !== f.family) return false;
+    if (f.tier && j.tier !== f.tier) return false;
+    if (f.employer && (j.employer_type || "unknown") !== f.employer) return false;
+    if (f.board && j.board !== f.board) return false;
+    if (terms.length) {
+      const hay = `${j.title} ${j.company} ${j.location} ${j.board} ${j.salary || ""} ${j.version || ""}`.toLowerCase();
+      if (!terms.every((t) => hay.includes(t))) return false;
+    }
+    return true;
+  });
+  const s = f.sort || "fit";
+  out.sort(s === "newest" ? (a, b) => when(b) - when(a) : s === "found" ? (a, b) => String(b.found_at || "").localeCompare(String(a.found_at || ""))
+    : s === "company" ? (a, b) => String(a.company || "").localeCompare(String(b.company || "")) : (a, b) => (b.score || 0) - (a.score || 0));
+  return out;
+}
+
+function opts(values, labels, cur, allLabel) {
+  return `<option value="">${allLabel}</option>` + values.map(([v, n]) => `<option value="${esc(v)}" ${v === cur ? "selected" : ""}>${esc((labels && labels[v]) || v)} (${n})</option>`).join("");
+}
+function countBy(list, key) { const m = {}; list.forEach((j) => { const v = key(j); if (v) m[v] = (m[v] || 0) + 1; }); return Object.entries(m).sort((a, b) => b[1] - a[1]); }
+
+function filterBar(list, f) {
+  const base = applyFilters(list, Object.assign({}, f, { lens: "all" }), true);
+  return `<div class="card filters" role="search">
+   <div class="row" style="flex-wrap:nowrap"><label class="sr" for="fq">Search roles</label><input id="fq" type="search" placeholder="Search title, company, board, salary..." value="${esc(f.q)}" autocomplete="off" style="flex:1">
+   ${(f.q || f.family || f.tier || f.employer || f.board || f.lens !== "all") ? `<button class="btn btn-ghost" onclick="resetF()">Clear</button>` : ""}</div>
+   <div class="chips" aria-label="Quick categories">${LENSES.map(([k, l, fn]) => `<button class="chip ${f.lens === k ? "on" : ""}" aria-pressed="${f.lens === k}" onclick="pickLens('${k}')">${l}<span class="c">${base.filter(fn).length}</span></button>`).join("")}</div>
+   <div class="selects">
+    <select aria-label="Resume" onchange="pick('family',this.value)">${opts(countBy(list, (j) => j.family), FAMILY, f.family, "Any resume")}</select>
+    <select aria-label="Level" onchange="pick('tier',this.value)">${opts(countBy(list, (j) => j.tier), null, f.tier, "Any level")}</select>
+    <select aria-label="Employer" onchange="pick('employer',this.value)">${opts(countBy(list, (j) => j.employer_type || "unknown"), EMPLOYER, f.employer, "Any employer")}</select>
+    <select aria-label="Source" onchange="pick('board',this.value)">${opts(countBy(list, (j) => j.board), null, f.board, "Any board")}</select>
+    <select aria-label="Sort" onchange="pick('sort',this.value)">${SORTS.map(([v, l]) => `<option value="${v}" ${f.sort === v ? "selected" : ""}>Sort: ${l}</option>`).join("")}</select>
+   </div></div>`;
+}
+let qTimer;
+function bindSearch() { const i = $("#fq"); if (!i) return; i.oninput = () => { clearTimeout(qTimer); qTimer = setTimeout(() => { const pos = i.selectionStart; setF({ q: i.value }); draw(); const n = $("#fq"); if (n) { n.focus(); try { n.setSelectionRange(pos, pos); } catch {} } }, 220); }; }
+function pickLens(k) { setF({ lens: k }); draw(); }
+function pick(k, v) { setF({ [k]: v }); draw(); }
+function resetF() { try { localStorage.removeItem(fkey()); } catch {} SHOWN[TAB] = PAGE; draw(); }
+function more() { SHOWN[TAB] = (SHOWN[TAB] || PAGE) + PAGE; draw(true); }
+
+// ---------- basics ----------
 function toast(t) { const e = $("#toast"); e.textContent = t; e.style.display = "block"; clearTimeout(e._t); e._t = setTimeout(() => (e.style.display = "none"), 4000); }
 
 async function api(path, body) {
@@ -76,7 +164,7 @@ function showLogin(msg) {
   $("#app").innerHTML = `<div class="login card"><div class="brand" style="margin-bottom:14px"><img src="/seed.svg" alt=""><div><h1>Mustard Seed</h1><p>Your job engine, from anywhere</p></div></div>
   <form id="lf"><label for="pw" class="small muted">Password</label><input id="pw" type="password" autocomplete="current-password" required style="margin:6px 0 10px">
   <button class="btn btn-primary" style="width:100%">Sign in</button><p id="lerr" class="small" style="color:var(--bad-ink);min-height:1.4em">${esc(msg || "")}</p></form>
-  <p class="small muted">The password is CLOUD_PASSWORD in your PC dashboard (Settings &gt; Keys).</p></div>`;
+  <p class="small muted">The password is CLOUD_PASSWORD in your PC dashboard (Settings &gt; Keys). On a phone, use Share &gt; Add to Home Screen to keep Mustard Seed as an app.</p></div>`;
   $("#lf").onsubmit = async (e) => {
     e.preventDefault();
     const b = e.submitter; b.disabled = true;
@@ -98,10 +186,16 @@ function pcStatus() {
   return `<span class="pc" title="${on ? "Your PC dashboard is open and syncing" : "Open start.bat on your PC to sync and run commands"}"><span class="dot ${on ? "on" : "off"}"></span>${on ? "PC online" : "PC offline"} - synced ${ago}</span>`;
 }
 
+function followupsDue(list) {
+  const cut = Date.now() - 7 * DAY;
+  return list.filter((j) => j.status === "submitted" && j.applied_at && Date.parse(j.applied_at.slice(0, 10)) <= cut && !j.followup_at && (!j.reply_kind || j.reply_kind === "received"));
+}
+
 function counts() {
   const c = STATE?.counts || {};
   const ov = STATE?.overview?.v || {};
-  return { review: (c.ready || 0) + (c.approved || 0), needs: (c.needs_you || 0) + (c.failed || 0), applied: c.submitted || 0, referrals: ov.contacts_pending || 0, found: c.new || 0, runs: "" };
+  const bad = (ov.boards || []).filter((b) => /^(broken|blocked|needs|error|empty)/.test(b.health || "") || (b.ok === 0 && !b.health)).length;
+  return { review: (c.ready || 0) + (c.approved || 0), needs: (c.needs_you || 0) + (c.failed || 0), applied: c.submitted || 0, referrals: ov.contacts_pending || 0, found: c.new || 0, boards: bad ? `${bad} !` : "", runs: "" };
 }
 
 function frame(inner) {
@@ -110,12 +204,14 @@ function frame(inner) {
     <div class="row"><button class="btn btn-ghost" onclick="toggleTheme()" id="tt">Theme</button><button class="btn btn-ghost" onclick="signOut()">Sign out</button></div></header>
     <nav aria-label="Sections">${TABS.map(([k, l]) => `<button class="tab ${TAB === k ? "active" : ""}" aria-current="${TAB === k ? "page" : "false"}" onclick="go('${k}')">${l}${n[k] !== "" && n[k] !== undefined ? `<span class="n">${n[k]}</span>` : ""}</button>`).join("")}</nav>
     <main id="main">${inner}</main>`;
+  syncTheme();
+  bindSearch();
 }
 
 function geoBadge(j) {
-  if (j.geo_ok == 1) return `<span class="badge b-ok" title="${esc(j.geo_reason)}">Open to SA</span>`;
-  if (j.geo_ok == 0) return `<span class="badge b-bad" title="${esc(j.geo_reason)}">Not open to SA</span>`;
-  return `<span class="badge b-warn" title="${esc(j.geo_reason)}">Location unclear</span>`;
+  if (j.geo_ok == 1) return `<span class="badge b-ok">Open to SA</span>`;
+  if (j.geo_ok == 0) return `<span class="badge b-bad">Not open to SA</span>`;
+  return `<span class="badge b-warn">Location unclear</span>`;
 }
 
 function lockHTML(j) {
@@ -125,13 +221,38 @@ function lockHTML(j) {
   return `<div class="small muted" style="margin-top:6px">${esc(l.message)}</div>`;
 }
 
-function contactsHTML(j) {
-  const cs = j.contacts || [];
+function contactsHTML(cs) {
+  cs = cs || [];
   cs.forEach((c) => (NOTES[c.id] = c.note || ""));
   if (!cs.length) return `<p class="small muted">No referral contacts found for this one.</p>`;
   return cs.map((c) => `<div class="contact"><div class="row between"><div><b>${esc(c.name)}</b> <span class="badge">${esc((c.kind || "").replace("_", " "))}</span>${c.sent ? ' <span class="badge b-ok">sent</span>' : ""}<div class="small muted">${esc(c.headline || "")}</div></div>
-    <div class="row"><a class="btn" target="_blank" rel="noopener" href="${esc(c.url)}">LinkedIn</a><button class="btn" onclick="copyNote(${Number(c.id)})">Copy note</button>${c.sent ? "" : `<button class="btn btn-green" onclick="sent(${c.id})">I sent it</button>`}</div></div>
-    <pre>${esc(c.note || "")}</pre>${c.followup ? `<details><summary>After they accept</summary><pre>${esc(c.followup)}</pre></details>` : ""}</div>`).join("");
+    <div class="row"><a class="btn" target="_blank" rel="noopener" href="${esc(c.url)}">LinkedIn</a>${c.note != null ? `<button class="btn" onclick="copyNote(${Number(c.id)})">Copy note</button>` : ""}${c.sent ? "" : `<button class="btn btn-green" onclick="sent(${Number(c.id)})">I sent it</button>`}</div></div>
+    ${c.note != null ? `<pre>${esc(c.note || "")}</pre>${c.followup ? `<details><summary>After they accept</summary><pre>${esc(c.followup)}</pre></details>` : ""}` : ""}</div>`).join("");
+}
+
+function detailHTML(j, mode) {
+  const d = DETAIL[j.id];
+  if (!d) return `<div class="small muted" style="margin-top:8px">Loading the full role...</div>`;
+  if (d.error) return `<p class="small" style="color:var(--bad-ink)">${esc(d.error)}</p>`;
+  const full = mode !== "found";
+  return `${full && d.cover_letter ? `<details open><summary>Cover letter</summary><pre>${esc(d.cover_letter)}</pre><button class="btn btn-ghost small" onclick="copyText(DETAIL['${j.id}'].cover_letter)">Copy cover letter</button></details>` : ""}
+  ${full && (d.interview_prep || []).length ? `<details><summary>How to walk into the interview (${d.interview_prep.length})</summary><ul class="small">${d.interview_prep.map((x) => `<li>${esc(x)}</li>`).join("")}</ul>${(d.gaps || []).length ? `<p class="small" style="margin:8px 0 0"><b>Asked for, not on your resume:</b></p><ul class="small">${d.gaps.map((x) => `<li>${esc(x)}</li>`).join("")}</ul>` : ""}</details>` : ""}
+  ${full ? `<details><summary>Referral contacts (${(d.contacts || []).length})</summary>${contactsHTML(d.contacts)}</details>` : ""}
+  ${d.score_reasons ? `<details><summary>Why it scored ${Math.round(d.score || 0)}</summary><p class="small">${esc(d.score_reasons)}</p>${d.geo_reason ? `<p class="small muted">${esc(d.geo_reason)}</p>` : ""}</details>` : ""}
+  <details><summary>Job description</summary><pre>${esc(d.description || "")}</pre></details>`;
+}
+
+async function openJob(id, mode) {
+  const box = document.getElementById("d-" + id);
+  if (!box) return;
+  if (box.dataset.open === "1") { box.dataset.open = "0"; box.innerHTML = ""; $("#tb-" + id).textContent = "Open details"; return; }
+  box.dataset.open = "1"; $("#tb-" + id).textContent = "Hide details";
+  const j = JOBS.find((x) => x.id === id) || { id };
+  box.innerHTML = detailHTML(j, mode);
+  if (!DETAIL[id]) {
+    try { DETAIL[id] = await api(`/api/job?id=${encodeURIComponent(id)}`); } catch (e) { DETAIL[id] = { error: e.message }; }
+    if (box.dataset.open === "1") box.innerHTML = detailHTML(j, mode);
+  }
 }
 
 function jobCard(j, mode) {
@@ -144,73 +265,124 @@ function jobCard(j, mode) {
       : `<span class="badge">${esc(j.status)}</span>`,
     needs: `<button class="btn btn-green" onclick="act('${j.id}','done')">I submitted it</button><button class="btn" onclick="act('${j.id}','approve')">Try again</button><button class="btn" onclick="retry('${j.id}')">Re-tailor...</button><button class="btn btn-ghost" onclick="act('${j.id}','skip')">Skip</button>`,
     found: `<button class="btn" onclick="runCmd('prepare','${j.id}')">Prepare this one</button>`,
-    applied: j.applied_at ? `<span class="badge">applied ${esc(j.applied_at.slice(0, 10))}</span>` : `<span class="badge">${esc(j.status)}</span>`,
+    applied: j.applied_at ? `<span class="badge">applied ${esc(j.applied_at.slice(0, 10))}</span>${j.reply_kind ? ` <span class="badge ${j.reply_kind === "rejection" ? "b-bad" : j.reply_kind === "received" ? "" : "b-ok"}">${esc(j.reply_kind)}</span>` : ""}` : `<span class="badge">${esc(j.status)}</span>`,
   }[mode] || "";
-  const full = mode !== "found";
+  const nc = (j.contacts || []).length;
+  const posted = j.posted_at ? `posted ${esc(j.posted_at.slice(0, 10))}` : j.found_at ? `found ${esc(j.found_at.slice(0, 10))}` : "";
   return `<article class="card ${pend ? "pending" : ""}">
   <div class="row between" style="align-items:flex-start"><div style="min-width:0;flex:1 1 260px"><div class="title">${esc(j.title)}</div>
-   <div class="small">${esc(j.company)} <span class="muted">- ${esc(j.location || "")}</span></div>
-   <div class="row" style="margin-top:6px">${geoBadge(j)}<span class="badge" title="Resume version">${esc(j.version)}</span><span class="badge">fit ${Math.round(j.score || 0)}</span><span class="badge">${esc(j.board)}</span>${j.salary ? `<span class="badge">${esc(j.salary)}</span>` : ""}${j.is_platform ? '<span class="badge" title="One resume family per platform">platform</span>' : ""}${j.ai_ban ? '<span class="badge b-bad">Bans AI applications - write it yourself</span>' : ""}${j.in_notion ? '<span class="badge">in Notion</span>' : ""}</div>
+   <div class="small">${esc(j.company)} <span class="muted">- ${esc(j.location || "")}${posted ? " - " + posted : ""}</span></div>
+   <div class="row" style="margin-top:6px">${geoBadge(j)}<span class="badge" title="Resume version">${esc(j.version)}</span><span class="badge">fit ${Math.round(j.score || 0)}</span><span class="badge">${esc(j.board)}</span>${j.salary ? `<span class="badge">${esc(j.salary)}</span>` : ""}${j.employment_type ? `<span class="badge">${esc(j.employment_type)}</span>` : ""}${j.is_platform ? '<span class="badge" title="One resume family per platform">platform</span>' : ""}${nc ? `<span class="badge">${nc} referral${nc > 1 ? "s" : ""}</span>` : ""}${j.ai_ban ? '<span class="badge b-bad">Bans AI applications - write it yourself</span>' : ""}${j.in_notion ? '<span class="badge">in Notion</span>' : ""}</div>
    ${lockHTML(j)}</div>
    <div class="row">${pend ? `<span class="small muted">${esc(pend)}</span>` : actions}</div></div>
   ${j.status_note ? `<p class="small ${mode === "needs" ? "" : "muted"}" style="margin:8px 0 0">${esc(j.status_note)}</p>` : ""}
-  <div class="row" style="margin-top:10px"><a class="btn" target="_blank" rel="noopener" href="${esc(j.url)}">Posting</a>${j.apply_url && j.apply_url !== j.url ? `<a class="btn" target="_blank" rel="noopener" href="${esc(j.apply_url)}">Apply page</a>` : ""}
-   ${files.resume ? `<a class="btn" target="_blank" href="/api/file?job=${encodeURIComponent(j.id)}&kind=resume">Resume PDF</a>` : ""}${files.cover ? `<a class="btn" target="_blank" href="/api/file?job=${encodeURIComponent(j.id)}&kind=cover">Cover letter PDF</a>` : ""}</div>
-  ${full && j.cover_letter ? `<details><summary>Cover letter</summary><pre>${esc(j.cover_letter)}</pre></details>` : ""}
-  ${full && (j.interview_prep || []).length ? `<details><summary>How to walk into the interview (${j.interview_prep.length})</summary><ul class="small">${j.interview_prep.map((x) => `<li>${esc(x)}</li>`).join("")}</ul>${(j.gaps || []).length ? `<p class="small" style="margin:8px 0 0"><b>Asked for, not on your resume:</b></p><ul class="small">${j.gaps.map((x) => `<li>${esc(x)}</li>`).join("")}</ul>` : ""}</details>` : ""}
-  ${full ? `<details ${mode === "applied" ? "" : ""}><summary>Referral contacts (${(j.contacts || []).length})</summary>${contactsHTML(j)}</details>` : ""}
   ${j.fit_line && j.fit_line !== j.status_note ? `<p class="small muted" style="margin:8px 0 0">${esc(j.fit_line)}</p>` : ""}
-  <details><summary>Job description</summary><pre>${esc(j.description || "")}</pre></details>
+  <div class="row" style="margin-top:10px"><button class="btn" id="tb-${esc(j.id)}" onclick="openJob('${j.id}','${mode}')">Open details</button><a class="btn" target="_blank" rel="noopener" href="${esc(j.url)}">Posting</a>${j.apply_url && j.apply_url !== j.url ? `<a class="btn" target="_blank" rel="noopener" href="${esc(j.apply_url)}">Apply page</a>` : ""}
+   ${files.resume ? `<a class="btn" target="_blank" href="/api/file?job=${encodeURIComponent(j.id)}&kind=resume">Resume PDF</a>` : ""}${files.cover ? `<a class="btn" target="_blank" href="/api/file?job=${encodeURIComponent(j.id)}&kind=cover">Cover letter PDF</a>` : ""}</div>
+  <div id="d-${esc(j.id)}"></div>
  </article>`;
 }
 
 function empty(text) { return `<div class="card empty">${text}</div>`; }
 
+function pageOf(list, mode) {
+  const n = SHOWN[TAB] || PAGE;
+  return list.slice(0, n).map((j) => jobCard(j, mode)).join("") +
+    (list.length > n ? `<div class="row" style="justify-content:center;margin:10px 0"><button class="btn" onclick="more()">Show ${Math.min(PAGE, list.length - n)} more (${list.length - n} left)</button></div>` : "");
+}
+
 async function render() {
   location.hash = TAB;
   if (TAB === "runs") return renderRuns();
-  if (!JOBS.length) frame(`<div class="card empty">Loading...</div>`);
+  if (TAB === "boards") return renderBoards();
   const status = STATUS_FOR[TAB];
-  try { JOBS = await api(`/api/jobs?status=${status}&limit=${TAB === "found" ? 200 : 400}`); }
+  if (LOADED_FOR !== status) { JOBS = []; frame(`<div class="card empty">Loading...</div>`); }
+  try { JOBS = await api(`/api/jobs?status=${status}&limit=${TAB === "found" ? 400 : 1500}`); LOADED_FOR = status; }
   catch (e) { frame(empty(esc(e.message))); return; }
+  draw();
+}
+
+function draw(keepScroll) {
+  const y = window.scrollY;
+  const f = getF();
   let html = "";
   if (TAB === "review") {
     const ov = STATE?.overview?.v || {};
     html += `<div class="metrics">${[["Ready to review", (STATE?.counts?.ready || 0), "review"], ["Need your touch", counts().needs, "needs"], ["Applied this week", ov.applied_week || 0, "applied"], ["Referral notes", ov.contacts_pending || 0, "referrals"]].map(([l, n, k]) => `<button class="metric" onclick="go('${k}')"><span class="small muted">${l}</span><strong>${n}</strong></button>`).join("")}</div>`;
-    html += `<div class="card row"><span class="small">Approve every ready role open to SA with fit at least</span><input id="ms" type="number" value="60" style="width:80px;min-height:40px"><button class="btn" onclick="approveAll()">Approve all</button><button class="btn btn-primary" onclick="runCmd('submit')">Submit approved now</button><span class="small muted">Roles with a same-company warning are never bulk-approved.</span></div>`;
     const rows = JOBS.filter((j) => j.status === "ready" || j.status === "approved");
     const other = JOBS.filter((j) => !(j.status === "ready" || j.status === "approved"));
-    html += rows.length ? rows.map((j) => jobCard(j, "review")).join("") : empty("Nothing waiting. The scheduled run fills this up, or start one from Runs.");
+    const shown = applyFilters(rows, f);
+    html += filterBar(rows, f);
+    html += `<div class="card row"><span class="small">Approve every ready role open to SA with fit at least</span><input id="ms" type="number" value="60" style="width:80px;min-height:40px"><button class="btn" onclick="approveAll()">Approve all</button><button class="btn btn-primary" onclick="runCmd('submit')">Submit approved now</button><span class="small muted">Applies to all of Review, not just the filter. Roles with a same-company warning are never bulk-approved.</span></div>`;
+    html += `<p class="small muted" style="margin:4px 2px 8px">Showing ${Math.min(shown.length, SHOWN[TAB] || PAGE)} of ${shown.length} matching${shown.length !== rows.length ? ` (${rows.length} in Review)` : ""}.</p>`;
+    html += shown.length ? pageOf(shown, "review") : empty(rows.length ? "No roles match these filters. <button class='btn' onclick='resetF()'>Clear filters</button>" : "Nothing waiting. The scheduled run fills this up, or start one from Runs.");
     if (other.length) html += `<p class="small muted">Being prepared or re-tailored: ${other.map((j) => esc(j.title + " - " + j.company)).join("; ")}</p>`;
   } else if (TAB === "needs") {
-    html += JOBS.length ? JOBS.map((j) => jobCard(j, "needs")).join("") : empty("Nothing needs you right now.");
+    const shown = applyFilters(JOBS, f);
+    html += JOBS.length > 5 ? filterBar(JOBS, f) : "";
+    html += shown.length ? pageOf(shown, "needs") : empty(JOBS.length ? "No roles match these filters." : "Nothing needs you right now.");
   } else if (TAB === "applied") {
-    JOBS.sort((a, b) => String(b.applied_at || "").localeCompare(String(a.applied_at || "")));
-    html += JOBS.length ? JOBS.map((j) => jobCard(j, "applied")).join("") : empty("No applications yet.");
+    const due = followupsDue(JOBS);
+    if (due.length) html += `<div class="card"><b>Follow-ups due (${due.length})</b><p class="small muted" style="margin:4px 0 8px">Applied a week or more ago with no reply. Copy the note, send it yourself, then mark it done.</p>${due.map((j) => { const d = Math.round((Date.now() - Date.parse(j.applied_at.slice(0, 10))) / DAY); const note = `Hi ${j.company} team, I applied for the ${j.title} role on ${j.applied_at.slice(0, 10)} and wanted to check in. I'm still very interested and happy to share more work or jump on a short call. Kind regards`; NOTES["fu-" + j.id] = note; return `<div class="brow" style="flex-wrap:wrap"><span><b>${esc(j.company)}</b> - ${esc(j.title)} <span class="badge">${d} days</span></span><span class="row"><button class="btn" onclick="copyText(NOTES['fu-${j.id}'])">Copy note</button><button class="btn btn-green" onclick="followedUp('${j.id}')">I followed up</button></span></div>`; }).join("")}</div>`;
+    const shown = applyFilters(JOBS, Object.assign({}, f, { sort: f.sort === "fit" ? "found" : f.sort }));
+    if (JOBS.length > 5) html += filterBar(JOBS, f);
+    shown.sort((a, b) => String(b.applied_at || "").localeCompare(String(a.applied_at || "")));
+    html += shown.length ? pageOf(shown, "applied") : empty(JOBS.length ? "No applications match these filters." : "No applications yet.");
   } else if (TAB === "referrals") {
     const items = [];
     JOBS.forEach((j) => (j.contacts || []).forEach((c) => items.push([c, j])));
     items.sort((a, b) => (a[0].sent - b[0].sent) || (b[1].score - a[1].score));
-    html += items.length ? items.map(([c, j]) => `<div class="card"><div class="small muted">${esc(j.title)} - ${esc(j.company)} <span class="badge">${esc(j.status)}</span></div>${contactsHTML({ contacts: [c] })}</div>`).join("") : empty("No referral notes yet.");
+    const open = items.filter(([c]) => !c.sent).length;
+    const q = (getF().q || "").toLowerCase();
+    const list = q ? items.filter(([c, j]) => `${c.name} ${j.company} ${j.title}`.toLowerCase().includes(q)) : items;
+    html += `<div class="card"><label class="sr" for="fq">Search people or companies</label><input id="fq" type="search" placeholder="Search people, companies or roles..." value="${esc(getF().q)}"><p class="small muted" style="margin:6px 0 0">${open} notes waiting to send across ${new Set(items.filter(([c]) => !c.sent).map(([, j]) => j.id)).size} roles. Open a role to see and copy its notes.</p></div>`;
+    const byJob = {}; list.forEach(([c, j]) => { (byJob[j.id] = byJob[j.id] || { j, cs: [] }).cs.push(c); });
+    const groups = Object.values(byJob);
+    const n = SHOWN[TAB] || PAGE;
+    html += groups.length ? groups.slice(0, n).map(({ j, cs }) => `<div class="card"><div class="row between"><div><b>${esc(j.company)}</b> <span class="small muted">- ${esc(j.title)}</span> <span class="badge">${esc(j.status)}</span></div><button class="btn" id="tb-${esc(j.id)}" onclick="openJob('${j.id}','review')">Open notes</button></div>
+      <div class="small" style="margin-top:6px">${cs.map((c) => `${esc(c.name)} <span class="badge">${esc((c.kind || "").replace("_", " "))}</span>${c.sent ? ' <span class="badge b-ok">sent</span>' : ""}`).join(" &middot; ")}</div><div id="d-${esc(j.id)}"></div></div>`).join("")
+      + (groups.length > n ? `<div class="row" style="justify-content:center"><button class="btn" onclick="more()">Show more (${groups.length - n} left)</button></div>` : "")
+      : empty(items.length ? "Nobody matches that search." : "No referral notes yet.");
   } else if (TAB === "found") {
+    const shown = applyFilters(JOBS, f);
     html += `<p class="small muted">Best-fit roles found but not prepared yet (top ${JOBS.length}). Prepare one and it lands in Review.</p>`;
-    html += JOBS.length ? JOBS.map((j) => jobCard(j, "found")).join("") : empty("Nothing new.");
+    html += filterBar(JOBS, f);
+    html += shown.length ? pageOf(shown, "found") : empty(JOBS.length ? "No roles match these filters." : "Nothing new.");
   }
   frame(html);
-  syncTheme();
+  if (keepScroll) window.scrollTo(0, y);
+}
+
+function healthBadge(b) {
+  const h = b.health || "";
+  const seen = b.links != null ? `Read ${b.links} links, ${b.hits} looked like jobs. ` : "";
+  if (b.never_run) return `<span class="badge">not run yet</span>`;
+  if (h.startsWith("broken")) return `<span class="badge b-bad" title="${esc(seen)}The site changed its layout">Layout changed</span>`;
+  if (h === "needs sign-in") return `<span class="badge b-warn" title="${esc(seen + (b.error || ""))}">Sign in once on the PC</span>`;
+  if (h === "blocked") return `<span class="badge b-bad" title="${esc(b.error || "")}">Blocks robots</span>`;
+  if (h === "empty feed") return `<span class="badge b-warn">Feed empty</span>`;
+  if (h === "error" || (b.ok === 0 && !h)) return `<span class="badge b-bad" title="${esc(b.error || "")}">Error</span>`;
+  if (h === "quiet" || (!h && !b.fetched)) return `<span class="badge" title="${esc(seen)}Worked - nothing new that fits">quiet</span>`;
+  return `<span class="badge b-ok" title="${esc(seen)}">ok</span>`;
+}
+
+function renderBoards() {
+  const boards = (STATE?.overview?.v?.boards || []).slice();
+  const rank = (b) => /^(broken|blocked|error)/.test(b.health || "") || (b.ok === 0 && !b.health) ? 0 : /^(needs|empty)/.test(b.health || "") ? 1 : 2;
+  boards.sort((a, b) => rank(a) - rank(b) || String(a.board).localeCompare(String(b.board)));
+  frame(`<div class="card small muted">Each board's last run. <b>quiet</b> means it worked but had nothing new for your resumes. Red needs a fix on the PC; amber needs a one-time sign-in there.</div>
+   <div class="card">${boards.map((b) => `<div class="brow"><span><b>${esc(b.board)}</b><br><span class="small muted">${b.never_run ? "never run" : esc((b.started || "").replace("T", " ").slice(0, 16))}${b.fetched != null ? ` - ${b.fetched} seen, ${b.new || 0} new` : ""}</span></span><span class="row">${healthBadge(b)}<button class="btn btn-ghost" onclick="runCmd('board',${esc(JSON.stringify(b.board))})">Run</button></span></div>`).join("") || `<p class="muted small">No board runs synced yet.</p>`}</div>`);
 }
 
 function renderRuns() {
   const runs = STATE?.runs?.v || [];
   const cmds = STATE?.commands || [];
-  const boards = STATE?.overview?.v?.boards || [];
-  const btn = (job, label, cls = "") => `<button class="btn ${cls}" onclick="runCmd('${job}')">${label}</button>`;
-  frame(`<div class="card"><div class="row">${btn("all", "Find + prepare now", "btn-primary")}${btn("scan", "Find new roles")}${btn("prepare", "Prepare best roles")}${btn("submit", "Submit approved", "btn-green")}${btn("backfill", "Referral backfill")}${btn("tiers", "Fill Notion Tier used")}${btn("sweep", "Apply platform rule to Review")}</div>
+  const btn = (job, label, cls = "", title = "") => `<button class="btn ${cls}" title="${esc(title)}" onclick="runCmd('${job}')">${label}</button>`;
+  frame(`<div class="card"><div class="row">${btn("all", "Find + prepare now", "btn-primary")}${btn("scan", "Find new roles")}${btn("prepare", "Prepare best roles")}${btn("submit", "Submit approved", "btn-green")}</div>
+   <div class="row" style="margin-top:8px">${btn("referrals", "Find referrals for Review", "", "People to ask for referrals, for roles in Review that have none")}${btn("replies", "Check employer replies", "", "Reads Gmail replies (read-only) and moves Notion to Interview / Rejected / Offered")}${btn("expire", "Clear stale roles", "", "Moves roles older than 3 weeks out of Review")}${btn("backfill", "Referral backfill (Notion)")}${btn("tiers", "Fill Notion Tier used")}${btn("sweep", "Apply platform rule to Review")}</div>
    <p class="small muted" style="margin:8px 0 0">Runs happen on your PC. It picks the command up within about 15 seconds while the dashboard is open there.</p></div>
    ${runs.map((r) => `<div class="card"><div class="row between"><b>${esc(r.job)} ${esc(r.arg || "")}</b><span class="badge ${/fail/.test(r.status) ? "b-bad" : r.status === "running" ? "b-warn" : "b-ok"}">${esc(r.status)}</span></div><div class="small muted">${esc((r.started || "").replace("T", " "))}</div>${r.tail ? `<details ${r.status === "running" ? "open" : ""}><summary>Log</summary><pre class="log">${esc(r.tail)}</pre></details>` : ""}</div>`).join("") || empty("No runs since the PC dashboard started.")}
-   <div class="card"><b>Recent commands from here</b>${cmds.slice(0, 12).map((c) => `<div class="row between small" style="border-top:1px solid var(--line);padding:6px 0"><span>${esc(c.kind)} ${esc(c.payload?.action || c.payload?.job || "")}</span><span class="muted">${esc(c.status)}${c.result && c.result.ok === false ? " - " + esc(c.result.error) : ""}</span></div>`).join("") || `<p class="small muted">None yet.</p>`}</div>
-   <details class="card"><summary>Boards (${boards.length})</summary>${boards.map((b) => `<div class="row between small" style="border-top:1px solid var(--line);padding:6px 0"><span>${esc(b.board)}</span><span class="badge ${b.never_run ? "" : b.ok ? (b.fetched ? "b-ok" : "b-warn") : "b-bad"}" title="${esc(b.error || "")}">${b.never_run ? "not run" : b.ok ? `${b.fetched || 0} seen, ${b.new || 0} new` : "error"}</span></div>`).join("")}</details>`);
-  syncTheme();
+   <div class="card"><b>Recent commands from here</b>${cmds.slice(0, 12).map((c) => `<div class="brow"><span>${esc(c.kind)} ${esc(c.payload?.action || c.payload?.job || "")}</span><span class="muted small">${esc(c.status)}${c.result && c.result.ok === false ? " - " + esc(c.result.error) : ""}</span></div>`).join("") || `<p class="small muted">None yet.</p>`}</div>`);
 }
 
 async function command(body, label) {
@@ -223,17 +395,22 @@ async function command(body, label) {
 
 async function act(id, action, note, override) {
   PENDING[id] = "Sending to your PC...";
-  render();
+  draw(true);
   await command({ kind: "job_action", id, action, note, override }, { approve: "Approve", retry: "Retry", skip: "Skip", reopen: "Undo", done: "Marked submitted" }[action] || action);
 }
 function retry(id) { const n = prompt("What should change? (e.g. 'lean on Shopify more', 'use the admin resume', 'shorter cover letter')"); if (n !== null) act(id, "retry", n); }
 async function sent(id) { await command({ kind: "contact_sent", id }, "Marked sent"); }
+async function followedUp(id) { await command({ kind: "followed_up", id }, "Marked followed up"); }
 async function approveAll() { await command({ kind: "approve_all", min_score: +$("#ms").value }, "Approve all"); }
-async function runCmd(job, arg) { await command({ kind: "run", job, arg: arg || null }, arg ? "Prepare" : ({ all: "Find + prepare", scan: "Find", prepare: "Prepare", submit: "Submit approved", backfill: "Referral backfill", tiers: "Notion Tier used", sweep: "Platform rule" }[job] || job)); if (arg) PENDING[arg] = "Preparing on your PC..."; }
+async function runCmd(job, arg) {
+  const labels = { all: "Find + prepare", scan: "Find", prepare: "Prepare", submit: "Submit approved", backfill: "Referral backfill", tiers: "Notion Tier used", sweep: "Platform rule", referrals: "Find referrals", replies: "Check replies", expire: "Clear stale roles", board: "Run board" };
+  await command({ kind: "run", job, arg: arg || null }, labels[job] || job);
+  if (arg && job === "prepare") PENDING[arg] = "Preparing on your PC...";
+}
 function copyNote(id) { copyText(NOTES[id] || ""); }
-function copyText(t) { navigator.clipboard.writeText(t).then(() => toast("Copied"), () => toast("Copy failed - select the text instead")); }
+function copyText(t) { navigator.clipboard.writeText(t || "").then(() => toast("Copied"), () => toast("Copy failed - select the text instead")); }
 async function signOut() { await fetch("/api/login", { method: "DELETE" }); showLogin(); }
-function go(t) { TAB = t; window.scrollTo(0, 0); render(); }
+function go(t) { TAB = t; SHOWN[t] = PAGE; window.scrollTo(0, 0); render(); }
 
 async function loadState() {
   STATE = await api("/api/state");
@@ -245,15 +422,15 @@ async function loadState() {
         if (confirm(`${res.error}\n\nApprove anyway?`)) { act(c.payload.id, "approve", c.payload.note, true); continue; }
       } else if (res.ok === false) toast(`${label}: ${res.error || "failed"}`);
       else toast(`${label}: done on your PC`);
-      if (c.payload?.id) delete PENDING[c.payload.id];
+      if (c.payload?.id) { delete PENDING[c.payload.id]; delete DETAIL[c.payload.id]; }
       if (c.payload?.arg) delete PENDING[c.payload.arg];
       setTimeout(refreshJobs, 4000);
     }
   }
 }
-async function refreshJobs() { await loadState().catch(() => {}); render(); }
+async function refreshJobs() { await loadState().catch(() => {}); LOADED_FOR = LOADED_FOR; render(); }
 let pollTimer = null;
-function pollSoon() { clearTimeout(pollTimer); let n = 0; const tick = async () => { n++; try { await loadState(); } catch {} if (Object.keys(CMD_WATCH).length && n < 40) pollTimer = setTimeout(tick, 3000); else render(); }; pollTimer = setTimeout(tick, 2500); }
+function pollSoon() { clearTimeout(pollTimer); let n = 0; const tick = async () => { n++; try { await loadState(); } catch {} if (Object.keys(CMD_WATCH).length && n < 40) pollTimer = setTimeout(tick, 3000); else if (TAB === "runs" || TAB === "boards") render(); }; pollTimer = setTimeout(tick, 2500); }
 
 function syncTheme() { const b = $("#tt"); if (b) b.textContent = document.documentElement.dataset.theme === "dark" ? "Light" : "Dark"; }
 function toggleTheme() { const dark = document.documentElement.dataset.theme === "dark" || (!document.documentElement.dataset.theme && matchMedia("(prefers-color-scheme: dark)").matches); document.documentElement.dataset.theme = dark ? "light" : "dark"; try { localStorage.setItem("ms-theme", document.documentElement.dataset.theme); } catch {} syncTheme(); }
@@ -265,7 +442,8 @@ async function boot() {
 }
 window.addEventListener("hashchange", () => { const t = location.hash.slice(1); if (t && t !== TAB && TABS.some(([k]) => k === t)) { TAB = t; render(); } });
 window.addEventListener("unhandledrejection", (e) => { e.preventDefault(); toast(e.reason?.message || "Something went wrong"); });
-setInterval(() => { if (!document.hidden && STATE) loadState().then(() => { if (!Object.keys(CMD_WATCH).length) { const top = document.activeElement; if (!top || top === document.body) render(); } }).catch(() => {}); }, 60000);
+// refresh the header counts every minute without redrawing under your finger or scroll position
+setInterval(() => { if (!document.hidden && STATE) loadState().then(() => { if (TAB === "runs" || TAB === "boards") { const a = document.activeElement; if (!a || a === document.body) render(); } }).catch(() => {}); }, 60000);
 boot();
 </script>
 </body>
