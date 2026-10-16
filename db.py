@@ -49,9 +49,18 @@ CREATE TABLE IF NOT EXISTS events (
 """
 
 
+_SCHEMA_DONE = set()  # DB paths already migrated in this process
+
+
 def conn():
-    c = sqlite3.connect(DB_PATH, timeout=30)
+    """Autocommit connection (each statement commits at once) so no caller can hold the write lock
+    across slow network work - a long LinkedIn board used to lock out cloud sync for 15+ minutes."""
+    c = sqlite3.connect(DB_PATH, timeout=60, isolation_level=None)
     c.row_factory = sqlite3.Row
+    c.execute("PRAGMA busy_timeout=60000")
+    if str(DB_PATH) in _SCHEMA_DONE:
+        _backfill_norms(c)  # cheap: two indexed-null checks, writes only when something is missing
+        return c
     c.execute("PRAGMA journal_mode=WAL")
     c.executescript(SCHEMA)
     for col in ("employer_type", "employer_reason", "tz_reason", "company_norm", "lock_note", "version_sent"):
@@ -59,13 +68,21 @@ def conn():
             c.execute(f"ALTER TABLE jobs ADD COLUMN {col} TEXT")
         except sqlite3.OperationalError:
             pass  # already there
+    for col, typ in (("links", "INTEGER"), ("hits", "INTEGER"), ("health", "TEXT")):
+        try:
+            c.execute(f"ALTER TABLE board_runs ADD COLUMN {col} {typ}")
+        except sqlite3.OperationalError:
+            pass
     try:
         c.execute("ALTER TABLE contacts ADD COLUMN url_norm TEXT")
     except sqlite3.OperationalError:
         pass
     c.execute("CREATE INDEX IF NOT EXISTS ix_jobs_company_norm ON jobs(company_norm)")
     c.execute("CREATE INDEX IF NOT EXISTS ix_contacts_url_norm ON contacts(url_norm)")
+    c.execute("CREATE INDEX IF NOT EXISTS ix_jobs_status ON jobs(status)")
+    c.execute("CREATE INDEX IF NOT EXISTS ix_board_runs_board ON board_runs(board, id)")
     _backfill_norms(c)
+    _SCHEMA_DONE.add(str(DB_PATH))
     return c
 
 

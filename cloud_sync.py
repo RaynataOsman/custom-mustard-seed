@@ -24,7 +24,8 @@ STATUS = {"state": "off", "last_push": None, "last_error": None, "pushed": 0, "c
 _STOP = threading.Event()
 _KICK = threading.Event()
 ACTIVE = ("ready", "approved", "retry", "preparing", "submitting", "needs_you", "failed")
-RUN_JOBS = {"scan", "prepare", "submit", "all", "backfill", "tiers", "retriage", "sweep"}
+RUN_JOBS = {"scan", "prepare", "submit", "all", "backfill", "tiers", "retriage", "sweep", "referrals", "expire", "replies",
+            "board"}
 MAX_FILE_BYTES = 900_000
 PRELOAD_READY = 20
 
@@ -118,6 +119,7 @@ def _payload(c, j):
         "geo_ok": j.get("geo_ok"), "geo_reason": (j.get("geo_reason") or "")[:300], "employer_type": j.get("employer_type"),
         "salary": _salary(j.get("salary")), "employment_type": j.get("employment_type"), "posted_at": j.get("posted_at"),
         "found_at": j.get("found_at"), "applied_at": j.get("applied_at"), "ai_ban": j.get("ai_ban"),
+        "reply_kind": j.get("reply_kind"), "reply_at": j.get("reply_at"), "followup_at": j.get("followup_at"),
         "in_notion": bool(j.get("notion_page_id")), "lock": lock, "is_platform": safeguards.is_platform(j),
         "cover_letter": j.get("cover_letter") if full else None,
         "interview_prep": js(j.get("interview_prep")) if full else None,
@@ -196,7 +198,8 @@ def push_state(s):
     import app
     ov = app.overview()
     boards = [{"board": b.get("board"), "ok": b.get("ok"), "fetched": b.get("fetched"), "new": b.get("new"),
-               "error": (b.get("error") or "")[:200], "started": b.get("started"), "never_run": b.get("never_run")}
+               "error": (b.get("error") or "")[:200], "started": b.get("started"), "never_run": b.get("never_run"),
+               "health": b.get("health"), "links": b.get("links"), "hits": b.get("hits")}
               for b in ov["boards"]]
     runs = app.runs_snapshot()[:8]
     for r in runs[:2]:
@@ -234,6 +237,10 @@ def run_command(cmd):
                                                   "override": bool(p.get("override"))})
     if kind == "contact_sent":
         return app.contact_sent(int(p.get("id")))
+    if kind == "followed_up":
+        import lifecycle
+        lifecycle.mark_followed_up(str(p.get("id")))
+        return {"ok": True}
     if kind == "approve_all":
         return app.approve_all({"min_score": p.get("min_score", 60)})
     if kind == "file":
@@ -251,7 +258,11 @@ def run_command(cmd):
         if job not in RUN_JOBS:
             return {"ok": False, "error": "that run is not allowed from the online dashboard"}
         arg = p.get("arg")
-        if arg is not None and not str(arg).replace("_", "").isalnum():
+        if job == "board":
+            import util
+            if arg not in {b["name"] for b in util.load_config()["boards"]}:
+                return {"ok": False, "error": "unknown board"}
+        elif arg is not None and not str(arg).replace("_", "").isalnum():
             return {"ok": False, "error": "bad argument"}
         return app.start_run(job, arg)
     return {"ok": False, "error": "unknown command"}

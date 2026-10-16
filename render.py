@@ -256,8 +256,27 @@ def _scroll(page, times):
         page.wait_for_timeout(900)
 
 
+LAST = {}  # stats from the last harvest(): links on the pages, links matching the job pattern, sign-in wall
+
+
+_LOGIN_WALL = re.compile(r"/(login|signin|sign-in|sign_in|auth|authenticate)\b|[?&]redirect", re.I)
+
+
+def _goto(page, u, board):
+    """page.goto with one retry - remote.co and others drop HTTP/2 streams now and then."""
+    for attempt in range(2):
+        try:
+            return page.goto(u, wait_until="domcontentloaded", timeout=45000)
+        except Exception as e:
+            if attempt or not re.search(r"ERR_HTTP2|ERR_CONNECTION|ERR_TIMED_OUT|Timeout|net::", str(e)):
+                raise
+            page.wait_for_timeout(3000)
+
+
 def harvest(board, cfg, log, title_ok, known=frozenset()):
     """title_ok(title)->bool decides which links are worth opening."""
+    LAST.clear()
+    LAST.update(links=0, hits=0, signin=False)
     link_re = re.compile(board.get("link_pattern") or DEFAULT_LINK_RE, re.I)
     max_details = board.get("max_details", cfg["search"].get("render_max_details", 15))
     urls = board.get("urls") or [board["url"]]
@@ -288,7 +307,7 @@ def harvest(board, cfg, log, title_ok, known=frozenset()):
                     continue
                 visited.add(u)
                 try:
-                    page.goto(u, wait_until="domcontentloaded", timeout=45000)
+                    _goto(page, u, board)
                     page.wait_for_timeout(board.get("wait_ms", 2500))
                     for _ in range(5):  # let a Cloudflare / Indeed check clear, like a person waiting
                         if not re.search(r"just a moment|attention required|checking your browser", page.title(), re.I):
@@ -309,7 +328,26 @@ def harvest(board, cfg, log, title_ok, known=frozenset()):
                         found.setdefault(j["url"], j)
                 links = page.eval_on_selector_all("a[href]", """els => els.map(a => [a.href,
                     (a.innerText || a.getAttribute('aria-label') || a.title || '').trim()])""")
+                if board.get("frames"):
+                    # job lists embedded in an iframe (e.g. somewhere.com/jobs): scroll + read every child frame
+                    for fr in page.frames[1:]:
+                        try:
+                            for _ in range(board.get("frame_scrolls", 10)):
+                                fr.evaluate("window.scrollTo(0, document.body.scrollHeight)")
+                                page.wait_for_timeout(900)
+                            fl = fr.eval_on_selector_all("a[href]", """els => els.map(a => [a.href,
+                                (a.innerText || a.getAttribute('aria-label') || a.title || '').trim()])""")
+                            log(f"  {board['name']}: frame {fr.url[:80]} -> {len(fl)} links"
+                                + (f" e.g. {fl[0][0][:90]}" if fl else ""))
+                            links += fl
+                        except Exception as e:
+                            log(f"  {board['name']}: could not read frame {fr.url[:80]}: {e}")
                 host = urllib.parse.urlparse(u).netloc
+                LAST["links"] += len(links)
+                LAST["hits"] += sum(1 for h, _ in links if link_re.search(h or ""))
+                if _LOGIN_WALL.search(page.url) and not _LOGIN_WALL.search(u):
+                    LAST["signin"] = True
+                    log(f"  {board['name']}: redirected to a sign-in page ({page.url[:80]})")
                 for href, text in links:
                     text = ascii_clean(text.split("\n")[0]).strip()
                     if not href.startswith("http") or len(text) < 3 or len(text) > 140:
@@ -353,7 +391,7 @@ def harvest(board, cfg, log, title_ok, known=frozenset()):
                     out.append(dict(j, url=href, apply_url=href))
                     continue
                 try:
-                    page.goto(href, wait_until="domcontentloaded", timeout=45000)
+                    _goto(page, href, board)
                     page.wait_for_timeout(1800)
                     lds = _jsonld_jobs(page)
                     if lds:
@@ -396,10 +434,26 @@ def harvest(board, cfg, log, title_ok, known=frozenset()):
     for j in out:
         j.update(board=board["name"], source="render")
         if not j.get("company"):
-            m = re.search(r"/(?:company|companies|employer|o)/([a-z0-9\-]+)/", j["url"], re.I)
-            j["company"] = (m.group(1).replace("-", " ").title() if m else
-                            board.get("company_fallback") or urllib.parse.urlparse(j["url"]).netloc)
+            j["company"] = _company_guess(j, board)
     return out
+
+
+def _company_guess(j, board):
+    """Company when the posting page didn't state one: board-specific URL rule, 'Title at Company',
+    a /company/<slug>/ path - and only then the site's own name (safeguards ignore board hostnames)."""
+    url, title = j.get("url") or "", j.get("title") or ""
+    if board.get("company_url_re"):
+        m = re.search(board["company_url_re"], url, re.I)
+        if m:
+            return m.group(1).replace("-", " ").title()
+    m = re.search(r"\s(?:at|@)\s+([A-Z][\w&.' -]{1,50})$", title)
+    if m:
+        j["title"] = title[:m.start()].strip(" -|")
+        return m.group(1).strip()
+    m = re.search(r"/(?:company|companies|employer|o)/([a-z0-9\-]+)/", url, re.I)
+    if m:
+        return m.group(1).replace("-", " ").title()
+    return board.get("company_fallback") or urllib.parse.urlparse(url).netloc
 
 
 def open_login_browser(arg="https://www.linkedin.com/login"):

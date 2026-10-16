@@ -69,7 +69,7 @@ except RuntimeError as e:
 # INBOX opened read-only (fake IMAP)
 calls = {}
 class FakeIMAP:
-    def __init__(self, host): calls["host"] = host
+    def __init__(self, host, **kw): calls["host"] = host
     def login(self, a, p): calls["login"] = (a, p)
     def select(self, folder, readonly=False):
         calls["select"] = (folder, readonly); return "OK", [b"0"]

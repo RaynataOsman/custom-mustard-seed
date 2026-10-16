@@ -397,11 +397,58 @@ def companies(board, cfg, log):
     return out
 
 
+def nocodejobs(board, cfg, log):
+    """nocodejobs.org publishes its whole board as JSON (/jobs.json) - no browser needed."""
+    r = get(board.get("feed", "https://nocodejobs.org/jobs.json"))
+    r.raise_for_status()
+    d = r.json()
+    out = []
+    for it in (d.get("jobs") if isinstance(d, dict) else d) or []:
+        url = it.get("url") or it.get("applyUrl") or f"https://nocodejobs.org/jobs/{it.get('slug', '')}"
+        sal = it.get("compensation") or ""
+        out.append(_job(board, url=url, apply_url=it.get("applyUrl") or url, title=it.get("title"),
+                        company=it.get("company"), location=it.get("location") or it.get("workplaceType") or "Remote",
+                        description=strip_html(it.get("description") or ""), salary=sal,
+                        employment_type=(it.get("employmentType") or "").replace("_", " ").title(),
+                        posted_at=_iso(it.get("datePosted") or it.get("publishedAt") or it.get("createdAt"))))
+    return out
+
+
+def landingjobs(board, cfg, log):
+    """landing.jobs public API (EU tech roles, many with relocation / visa support)."""
+    out, offset, limit = [], 0, 50
+    for _ in range(board.get("pages", 6)):
+        r = get("https://landing.jobs/api/v1/jobs", params={"limit": limit, "offset": offset})
+        r.raise_for_status()
+        rows = r.json() or []
+        for it in rows:
+            locs = it.get("locations") or []
+            if isinstance(locs, str):
+                locs = []
+            where = ", ".join(f"{l.get('city', '')} {l.get('country_code', '')}".strip() for l in locs if isinstance(l, dict))
+            remote = str(it.get("remote")).lower() == "true"
+            sal = ""
+            if it.get("gross_salary_low"):
+                sal = f"{it.get('currency_code', 'EUR')} {it['gross_salary_low']}-{it.get('gross_salary_high') or ''}/yr"
+            desc = " ".join(strip_html(it.get(k) or "") for k in ("role_description", "main_requirements", "nice_to_have", "perks"))
+            if str(it.get("relocation_paid")).lower() == "true":
+                desc += " Relocation paid."
+            out.append(_job(board, url=it.get("url"), apply_url=it.get("url"), title=it.get("title"),
+                            company=(it.get("url") or "").split("/at/")[-1].split("/")[0].replace("-", " ").title(),
+                            location=("Remote, " if remote else "") + where, description=desc, salary=sal,
+                            employment_type=it.get("type") or "", posted_at=_iso(it.get("published_at"))))
+        if len(rows) < limit:
+            break
+        offset += limit
+        time.sleep(1)
+    return out
+
+
 ADAPTERS = {
     "companies": companies,
     "himalayas": himalayas, "remotive": remotive, "remoteok": remoteok, "wwr_rss": wwr_rss,
     "rss": rss, "workingnomads": workingnomads, "arbeitnow": arbeitnow, "jobicy": jobicy,
     "greenhouse": greenhouse, "lever": lever, "ashby": ashby, "workable": workable,
-    "linkedin": linkedin, "reddit": reddit,
+    "linkedin": linkedin, "reddit": reddit, "nocodejobs": nocodejobs, "landingjobs": landingjobs,
     "email_alerts": lambda b, c, l: __import__("email_alerts").fetch(b, c, l),
 }

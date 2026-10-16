@@ -22,16 +22,25 @@ MANAGER_TITLES = {
 }
 
 
+_SEARX_DOWN_UNTIL = [0.0]
+
+
 def _searx(q, cfg):
-    base = cfg["referrals"].get("searxng_url")
-    if not base:
+    """SearXNG search. If it isn't running (Docker off) we find out once and skip it for 10 minutes,
+    instead of paying util.get's 3 retries (~18 s) on every referral lookup."""
+    import time as _t
+    from util import http
+    base = (cfg["referrals"].get("searxng_url") or "").replace("//localhost", "//127.0.0.1") or None
+    if not base or _t.time() < _SEARX_DOWN_UNTIL[0]:
         return None
     try:
-        r = get(base.rstrip("/") + "/search", params={"q": q, "format": "json", "language": "en"}, timeout=25)
+        r = http().get(base.rstrip("/") + "/search", params={"q": q, "format": "json", "language": "en"}, timeout=25)
         if r.status_code == 200:
             return [{"url": x.get("url", ""), "title": x.get("title", ""), "snippet": x.get("content", "")}
                     for x in r.json().get("results", [])]
-    except Exception:
+    except Exception as e:
+        if "refused" in str(e).lower() or "max retries" in str(e).lower() or "failed to establish" in str(e).lower():
+            _SEARX_DOWN_UNTIL[0] = _t.time() + 600
         return None
     return None
 
@@ -117,7 +126,17 @@ def search(q, cfg):
 
 
 def _company_core(company):
-    c = re.sub(r"\(.*?\)", "", company or "")
+    """'OneDayOnly.co.za' -> 'OneDayOnly'. A job board's own name (remote.co, jobbank.gc.ca) -> '' (unknown employer)."""
+    try:
+        from safeguards import board_hosts, norm_company
+        n = norm_company(company)
+        if not n or n in board_hosts() or re.fullmatch(r"(www\.)?[a-z0-9-]+\.(co|com|io|org|net)(\.[a-z]{2})?", (company or "").strip().lower()) and n in ("remote", "jobs", "careers"):
+            return ""
+    except Exception:
+        pass
+    c = re.sub(r"^(https?://)?(www\.)?", "", (company or "").strip(), flags=re.I)
+    c = re.sub(r"\.(com|io|ai|co|net|org|app|dev|tech|jobs)(\.[a-z]{2})?$|\.[a-z]{2}$", "", c, flags=re.I)
+    c = re.sub(r"\(.*?\)", "", c)
     c = re.sub(r"\b(inc|llc|ltd|gmbh|pty|limited|corp|co|group|ab|bv|sa|plc)\b\.?", "", c, flags=re.I)
     return c.strip(" ,.-")
 

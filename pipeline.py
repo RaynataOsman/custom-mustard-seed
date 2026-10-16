@@ -4,9 +4,12 @@
   prepare    tailor resume + cover letter + interview prep + referral contacts for the best new roles
   submit     apply to the roles you APPROVED in the dashboard (visible browser)
   backfill   find referral contacts for tracker rows whose Connections are blank
+  referrals [n]  find referral contacts for roles in Review that have none (best scores first)
   tiers      fill the Notion "Tier used" column for rows already in the tracker
   sweep      apply the one-family-per-platform rule to roles already waiting in Review
-  all        scan + prepare   (this is what the scheduled task runs; it never submits)
+  all        scan + expire + prepare + replies  (this is what the scheduled task runs; it never submits)
+  expire     move roles older than search.max_age_days out of New / Review
+  replies    read employer replies in Gmail (read-only) -> Interview / Rejected / Offered in Notion
   board <name>   scan one board only (for testing)
 """
 import json, sys, time, traceback, datetime, re
@@ -19,6 +22,28 @@ log = Log("engine")
 
 def _vocab_cache():
     return {fam: tailor.vocab(fam) for fam in load_config()["families"]}
+
+
+def board_health(kind, err, links, hits, fetched, matched, signin=False, signin_board=False):
+    """One word per board run, shown on the Boards tab:
+    ok | quiet (worked, nothing for your resumes today) | needs sign-in | blocked | error |
+    broken: page empty | broken: no job links (the site changed its layout - fix link_pattern) | empty feed"""
+    if err:
+        if re.search(r"bot protection|cloudflare|captcha|403|429", err, re.I):
+            return "blocked"
+        if re.search(r"sign.?in|login|not connected|password", err, re.I):
+            return "needs sign-in"
+        return "error"
+    if (signin or (signin_board and (hits or 0) <= 2)) and not fetched:
+        return "needs sign-in"
+    if kind == "render":
+        if not links:
+            return "broken: page empty"
+        if not hits:
+            return "broken: no job links"
+    elif not fetched:
+        return "quiet" if kind == "email_alerts" else "empty feed"  # alerts: no NEW alert emails since last read
+    return "ok" if matched else "quiet"
 
 
 def scan(only=None):
@@ -56,25 +81,39 @@ def scan(only=None):
         except Exception as e:
             err = f"{type(e).__name__}: {e}"
             log(f"  ERROR {err}")
-        matched = new = 0
+        matched = new = details = 0
         for j in raw:
             if not j.get("title") or not t_ok(j["title"]):
                 continue
             matched += 1
-            if b["kind"] == "linkedin" and not j.get("description"):
+            j["id"] = job_key(j.get("company"), j["title"])
+            if b["kind"] == "linkedin" and not j.get("description") \
+                    and not c.execute("SELECT 1 FROM jobs WHERE id=?", (j["id"],)).fetchone():
+                # only new roles need the detail page (it used to be fetched for every match: ~18 min a scan)
                 try:
                     boards.linkedin_detail(j)
+                    details += 1
+                    if details % 20 == 0:
+                        log(f"  LinkedIn: read {details} new postings so far")
                     time.sleep(2)
                 except Exception:
                     pass
-            j["id"] = job_key(j.get("company"), j["title"])
             j.setdefault("board", b["name"])
             if db.upsert_job(c, j):
                 new += 1
                 _triage_one(c, j, b.get("track", "remote"), cfg)
-        c.execute("INSERT INTO board_runs (board, kind, started, seconds, ok, fetched, matched, new, error) "
-                  "VALUES (?,?,?,?,?,?,?,?,?)", (b["name"], b["kind"], now_iso(), round(time.time() - start, 1),
-                                                0 if err else 1, len(raw), matched, new, err))
+        links = hits = None
+        if b["kind"] == "render":
+            import render
+            links, hits = render.LAST.get("links"), render.LAST.get("hits")
+        health = board_health(b["kind"], err, links, hits, len(raw), matched,
+                              signin=b["kind"] == "render" and render.LAST.get("signin"),
+                              signin_board=bool(b.get("signin_required")))
+        c.execute("INSERT INTO board_runs (board, kind, started, seconds, ok, fetched, matched, new, error, links, hits, health) "
+                  "VALUES (?,?,?,?,?,?,?,?,?,?,?,?)", (b["name"], b["kind"], now_iso(), round(time.time() - start, 1),
+                                                0 if err else 1, len(raw), matched, new, err, links, hits, health))
+        if health not in ("ok", "quiet"):
+            log(f"  health: {health}")
         c.commit()
         total_new += new
         log(f"  fetched {len(raw)}, matched {matched}, new {new}" + (f"  !! {err}" if err else ""))
@@ -353,6 +392,51 @@ def record_in_notion(job_id):
         log(f"  Notion write failed for {job['company']}: {e}")
 
 
+def refer_ready(limit=None):
+    """Referral contacts for roles already in Review that have none (e.g. prepared while SearXNG was off).
+    Best scores first. Safe to stop and re-run: roles that got contacts, or were searched in the last
+    7 days with no result, are skipped."""
+    cfg = load_config()
+    if not feature("referrals", cfg):
+        log("Referrals are switched off in Settings > Features")
+        return 0
+    c = db.conn()
+    rows = db.rows(c, """SELECT * FROM jobs j WHERE status='ready'
+                         AND NOT EXISTS (SELECT 1 FROM contacts x WHERE x.job_id=j.id)
+                         AND NOT EXISTS (SELECT 1 FROM events e WHERE e.job_id=j.id AND e.event='referrals_none'
+                                         AND e.ts >= datetime('now','-7 day'))
+                         ORDER BY score DESC, found_at DESC""" + (f" LIMIT {int(limit)}" if limit else ""))
+    log(f"finding referral contacts for {len(rows)} role(s) in Review")
+    done = people_total = 0
+    try:
+        for i, job in enumerate(rows, 1):
+            try:
+                people = referrals.find(job["company"], job["title"], job["family"], log=log,
+                                        exclude=contacted_elsewhere(c, job["id"]))
+            except Exception as e:
+                log(f"  {job['company']}: referral search failed ({type(e).__name__}: {e})")
+                continue
+            if not people:
+                db.event(c, job["id"], "referrals_none", "")
+                continue
+            for p in people:
+                c.execute("""INSERT OR IGNORE INTO contacts (job_id, company, name, headline, url, kind, rank, note,
+                             followup, found_at, url_norm) VALUES (?,?,?,?,?,?,?,?,?,?,?)""",
+                          (job["id"], job["company"], p["name"], p["headline"], p["url"], p["kind"], p["rank"],
+                           p["note"], p["followup"], now_iso(), safeguards.norm_profile_url(p["url"])))
+            done += 1
+            people_total += len(people)
+            if i % 10 == 0:
+                log(f"  progress: {i}/{len(rows)} roles searched, {done} with contacts, {people_total} people")
+    finally:
+        try:
+            referrals.close_browser()
+        except Exception:
+            pass
+    log(f"referrals done: {done} of {len(rows)} roles now have contacts ({people_total} people)")
+    return done
+
+
 def backfill():
     import notion_sync
     cfg = load_config()
@@ -409,13 +493,28 @@ if __name__ == "__main__":
         retriage()
     elif cmd == "backfill":
         backfill()
+    elif cmd == "referrals":
+        refer_ready(int(sys.argv[2]) if len(sys.argv) > 2 and sys.argv[2].isdigit() else None)
     elif cmd == "tiers":
         notion_tiers()
     elif cmd == "sweep":
         n = safeguards.sweep(db.conn(), log=log)
         log(f"platform rule applied to roles already in Review: {n} skipped")
+    elif cmd == "expire":
+        import lifecycle
+        lifecycle.expire_stale(log)
+    elif cmd == "replies":
+        import lifecycle
+        lifecycle.watch_replies(log)
     elif cmd == "all":
+        import lifecycle
         scan()
+        lifecycle.expire_stale(log)
         prepare()
+        if feature("email_alerts", load_config()):
+            try:
+                lifecycle.watch_replies(log)
+            except Exception as e:
+                log(f"reply watch skipped: {type(e).__name__}: {e}")
     else:
         print(__doc__)

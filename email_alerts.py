@@ -81,6 +81,9 @@ def _context_lines(chunk):
         ln = re.sub(r"\s+", " ", ln).strip(" \t|-·•")
         if not ln or len(ln) > 90 or _GENERIC.match(ln):
             continue
+        # half-cut HTML tags and alert boilerplate are not a company or a location
+        if re.search(r"<|>|=\"|role=|style=|\bmatch(es)? your\b|\bnew jobs\b|unsubscribe|view (all|more)", ln, re.I):
+            continue
         out.append(ln)
         if len(out) == 2:
             break
@@ -190,10 +193,17 @@ def _creds():
 
 
 def _connect():
+    """Gmail IMAP with a 30 s timeout and one retry (a dropped Wi-Fi moment used to fail the whole board)."""
     addr, pw = _creds()
-    M = imaplib.IMAP4_SSL("imap.gmail.com")
-    M.login(addr, pw)
-    return M
+    for attempt in range(2):
+        try:
+            M = imaplib.IMAP4_SSL("imap.gmail.com", timeout=30)
+            M.login(addr, pw)
+            return M
+        except (OSError, imaplib.IMAP4.abort) as e:
+            if attempt:
+                raise
+            time.sleep(5)
 
 
 def _since(days):

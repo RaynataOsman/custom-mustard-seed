@@ -64,6 +64,27 @@ def norm_company(name):
     return c
 
 
+_BOARD_HOSTS = None
+
+
+def board_hosts():
+    """Normalised names of every configured job board's website (remote.co -> 'remote', jobbank.gc.ca ...).
+    A role whose 'company' is one of these has an unknown employer, so the company lock must not group them."""
+    global _BOARD_HOSTS
+    if _BOARD_HOSTS is None:
+        import urllib.parse
+        from util import load_config
+        hs = set()
+        for b in load_config().get("boards", []):
+            for u in [b.get("url") or ""] + list(b.get("urls") or []):
+                h = urllib.parse.urlparse(u.replace("{q}", "x")).netloc
+                if h:
+                    hs.add(norm_company(h))
+                    hs.add(norm_company(re.sub(r"^(www|jobs|app|uae|za|de)\.", "", h)))
+        _BOARD_HOSTS = {h for h in hs if h}
+    return _BOARD_HOSTS
+
+
 def norm_profile_url(url):
     """LinkedIn profile URL in one canonical form, so the same person matches across roles."""
     u = (url or "").strip().lower()
@@ -108,8 +129,8 @@ def history(c, job, s=None):
     """Other roles at the same company that are in Review, approved or sent within the look-back window."""
     s = s or settings()
     n = job.get("company_norm") or norm_company(job.get("company"))
-    if not n or len(n) < 2:
-        return []
+    if not n or len(n) < 2 or n in board_hosts():
+        return []  # unknown employer (only the job board's own name) - nothing to compare against
     since = (datetime.date.today() - datetime.timedelta(days=int(s["lookback_days"]))).isoformat()
     rows = c.execute(f"""SELECT id, title, company, family, tier, status, score, applied_at, updated_at, found_at,
                          version_sent FROM jobs WHERE company_norm=? AND id<>? AND status IN ({','.join('?' * len(ACTIVE))})

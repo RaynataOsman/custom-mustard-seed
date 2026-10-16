@@ -343,6 +343,8 @@ FOREIGN = re.compile(r"\b(united states|united kingdom|france|germany|spain|ital
 def family_of(title, cfg):
     t = title.lower()
     fams = cfg["families"]
+    if "dev" in fams and any(re.search(p, t) for p in cfg.get("search", {}).get("dev_first", [])):
+        return "dev"  # technical-first titles (e.g. Customer Success Engineer) use the developer resume
     for fam in [f for f in ("admin", "design") if f in fams] + [f for f in fams if f not in ("admin", "design")]:
         spec = fams[fam]
         if any(re.search(p, t) for p in spec["title_patterns"]):
@@ -354,9 +356,23 @@ def excluded(title, cfg):
     return any(re.search(p, title.lower()) for p in cfg["search"]["title_exclude"])
 
 
+# Listing / category / alert-email headers that boards and alert emails present like job titles
+# ("Top Remote Account Manager (AM) Jobs", "Shopify Developer Jobs in Dubai", "Your job alert for X").
+NOT_A_JOB = re.compile(
+    r"^\s*(top|best|latest|new|browse|find|all|\d+\+?)?\s*(remote\s+|online\s+|work from home\s+)?"
+    r"[\w\s/&().,+#-]{0,50}\bjobs\b(\s+(in|for|at|near|from)\b.{0,40})?\s*$"
+    r"|\bjob alerts?\b|^\s*your job alert|\bjobs? (that )?match(es)? your|^\s*jobs at\b|\bnew jobs\b"
+    r"|^\s*(remote|online) [\w\s]{0,30} (jobs|vacancies|positions)\b", re.I)
+
+
+def is_listing_title(title):
+    return bool(title) and bool(NOT_A_JOB.search(title))
+
+
 def title_ok(title, cfg=None):
     cfg = cfg or load_config()
-    return bool(title) and not excluded(title, cfg) and family_of(title, cfg) is not None
+    return bool(title) and not is_listing_title(title) and not excluded(title, cfg) \
+        and family_of(title, cfg) is not None
 
 
 def years_asked(text):
@@ -369,6 +385,7 @@ def tier_of(title, desc, family, cfg):
     t = title.lower()
     tiers = cfg["families"][family]["tiers"]
     yrs = years_asked(desc or "")
+    t = re.sub(r"solutions? architect", "solutions-arch", t)  # mid/senior solutions architects are not 'architect' tier
     if re.search(r"\b(lead|staff|principal|architect)\b", t):
         want = "S"
     elif re.search(r"\b(senior|sr\.?|snr)\b", t):

@@ -15,7 +15,13 @@ KEY_NAMES = ["GEMINI_API_KEY", "GROQ_API_KEY", "CEREBRAS_API_KEY", "OPENROUTER_A
              "GMAIL_APP_PASSWORD", "CLOUD_TOKEN", "CLOUD_PASSWORD"]
 
 
+RUN_JOBS = {"scan", "board", "prepare", "submit", "backfill", "retriage", "sweep", "tiers", "expire", "replies", "referrals",
+            "all", "discover", "dryfill", "login"}
+
+
 def start_run(job, arg=None):
+    if job not in RUN_JOBS:
+        return {"ok": False, "error": f"unknown run '{job}'"}
     with _lock:
         if any(r["status"] == "running" and r["job"] not in ("login",) for r in RUNS.values()) and job != "login":
             return {"ok": False, "error": "another run is in progress - wait for it to finish"}
@@ -53,21 +59,53 @@ def health(force=False):
     cfg = load_config()
     keys = load_keys()
     v = {"keys": {k: bool(keys.get(k)) for k in KEY_NAMES}, "pdf": pdf.available() or "none - install LibreOffice"}
-    try:
-        r = get(cfg["referrals"]["searxng_url"].rstrip("/") + "/search", params={"q": "test", "format": "json"}, timeout=6)
-        v["searxng"] = r.status_code == 200
-    except Exception:
-        v["searxng"] = False
-    v["notion"] = notion_sync.health() if keys.get("NOTION_TOKEN") else "no token"
-    try:
-        r = get("http://127.0.0.1:11434/api/tags", timeout=3)
-        v["ollama"] = [m["name"] for m in r.json().get("models", [])]
-    except Exception:
-        v["ollama"] = None
+    from concurrent.futures import ThreadPoolExecutor
+
+    def searx():
+        # 127.0.0.1, not localhost: on Windows "localhost" tries IPv6 first and a closed port costs ~20 s
+        try:
+            u = cfg["referrals"]["searxng_url"].rstrip("/").replace("//localhost", "//127.0.0.1")
+            return get(u + "/search", params={"q": "test", "format": "json"}, timeout=3).status_code == 200
+        except Exception:
+            return False
+
+    def ollama():
+        if not any(p.get("name") == "ollama" and p.get("enabled", True) for p in cfg.get("llm", {}).get("providers", [])):
+            return "off"
+        try:
+            return [m["name"] for m in get("http://127.0.0.1:11434/api/tags", timeout=2).json().get("models", [])]
+        except Exception:
+            return None
+
+    def notion():
+        return notion_sync.health() if keys.get("NOTION_TOKEN") else "no token"
+    with ThreadPoolExecutor(3) as ex:
+        fs, fo, fn = ex.submit(searx), ex.submit(ollama), ex.submit(notion)
+        v["searxng"] = fs.result()
+        v["ollama"] = fo.result()
+        v["notion"] = fn.result()
+    if not v["searxng"]:
+        v["searxng_note"] = "SearXNG is not running (start Docker Desktop). Referral search falls back to Chrome."
     v["masters"] = sorted(p.name for p in (ROOT / "masters").glob("*.docx"))
     v["resume_copies"] = cfg["paths"]["resume_copies"]
     _health_cache.update(t=time.time(), v=v)
     return v
+
+
+def board_health_summary():
+    """Latest health word per enabled board + how many of its last 5 runs were bad."""
+    c = db.conn()
+    cfg = load_config()
+    out = []
+    for b in cfg["boards"]:
+        if not b.get("enabled", True):
+            continue
+        runs = db.rows(c, "SELECT started, health, fetched, matched, new, links, hits, error FROM board_runs "
+                          "WHERE board=? ORDER BY id DESC LIMIT 5", (b["name"],))
+        bad = sum(1 for r in runs if (r.get("health") or "").startswith(("broken", "blocked", "error", "needs", "empty")))
+        out.append({"board": b["name"], "kind": b["kind"], "last": runs[0] if runs else None, "bad_of_last5": bad,
+                    "note": b.get("note", "")})
+    return out
 
 
 def overview():
@@ -528,6 +566,11 @@ class H(BaseHTTPRequestHandler):
                 return self._send(200, list_jobs(q))
             if u.path == "/api/contacts":
                 return self._send(200, all_contacts())
+            if u.path == "/api/followups":
+                import lifecycle
+                return self._send(200, lifecycle.followups())
+            if u.path == "/api/board_health":
+                return self._send(200, board_health_summary())
             if u.path == "/api/runs":
                 return self._send(200, runs_snapshot())
             m = re.match(r"/api/run/(\d+)/log", u.path)
@@ -589,6 +632,11 @@ class H(BaseHTTPRequestHandler):
             m = re.match(r"/api/job/([^/]+)/action", u.path)
             if m:
                 return self._send(200, _kicked(job_action(m.group(1), b)))
+            m = re.match(r"/api/job/([0-9a-f]{8,40})/followed_up", u.path)
+            if m:
+                import lifecycle
+                lifecycle.mark_followed_up(m.group(1))
+                return self._send(200, _kicked({"ok": True}))
             m = re.match(r"/api/contact/(\d+)/sent", u.path)
             if m:
                 return self._send(200, _kicked(contact_sent(int(m.group(1)))))
