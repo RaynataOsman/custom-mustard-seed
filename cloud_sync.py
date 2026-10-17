@@ -118,6 +118,7 @@ def _payload(c, j):
         "reply_kind": j.get("reply_kind"), "reply_at": j.get("reply_at"), "followup_at": j.get("followup_at"),
         "in_notion": bool(j.get("notion_page_id")), "lock": lock, "is_platform": safeguards.is_platform(j),
         "cover_letter": j.get("cover_letter") if full else None,
+        "edited": bool(j.get("resume_edited_at") or j.get("cover_edited_at")),
         "interview_prep": js(j.get("interview_prep")) if full else None,
         "gaps": js(j.get("gaps")) if full else None,
         "fit_line": ed.get("fit"), "edits": len(ed.get("applied") or []), "llm_used": j.get("llm_used"),
@@ -230,7 +231,15 @@ def run_command(cmd):
     kind, p = cmd["kind"], cmd.get("payload") or {}
     if kind == "job_action":
         return app.job_action(str(p.get("id")), {"action": p.get("action"), "note": p.get("note"),
-                                                  "override": bool(p.get("override"))})
+                                                  "override": bool(p.get("override")),
+                                                  "discard": bool(p.get("discard"))})
+    if kind == "resume_text":
+        import editor
+        t = editor.get_texts(str(p.get("id")))
+        return {"ok": True, "text": t.get("resume_text") or ""}
+    if kind == "edit_text":
+        import editor
+        return editor.save(str(p.get("id")), p.get("what"), p.get("text") or "", bool(p.get("force")))
     if kind == "contact_sent":
         return app.contact_sent(int(p.get("id")))
     if kind == "followed_up":
@@ -274,6 +283,24 @@ def pull(s):
         rpc(s, "ms_finish_command", p_id=cmd["id"], p_result=json.loads(json.dumps(res, default=str)))
         STATUS["commands"] += 1
     return len(cmds)
+
+
+def refresh_job(job_id):
+    """After a hand edit: push that role and its fresh PDFs now (not on the next 60 s sweep)."""
+    s = settings()
+    if not ready(s):
+        return
+    c = db.conn()
+    rows = db.rows(c, "SELECT * FROM jobs WHERE id=?", (job_id,))
+    if not rows:
+        return
+    rpc(s, "ms_push_jobs", p_rows=[_payload(c, rows[0])])
+    for kind, _ in _files_for(rows[0]):
+        try:
+            upload_file(s, rows[0], kind, None)
+        except Exception:
+            pass
+    kick()
 
 
 def kick():

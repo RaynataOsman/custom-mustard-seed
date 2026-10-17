@@ -175,3 +175,13 @@ Never grouped: hidden employers ("Confidential", "Stealth"...) and job-board hos
 Limits: matching is by normalised name, so "Acme Labs" and "Acme Corp" stay separate unless they share a recruiter key; roles whose ad names no email, hiring account or LinkedIn profile cannot be matched to a recruiter.
 First live run (17 Oct): 350 of 993 roles in Review skipped (323 company, 26 recruiter, 1 platform); 643 remain. Backup before the change: `data\backup_2026-10-17\` (code, config, jobs.db).
 Tests: `tests/test_safeguards_v2.py`.
+
+## 10. Edit resume / cover letter by hand (18 Oct 2026)
+- **Where:** an *Edit resume* and *Edit cover letter* button on every role in Review / Needs you, on the PC dashboard and the phone app. The role's resume text is now visible too (PC: "Resume (text)"; phone: "Show resume text", fetched from the PC).
+- **What a save does:** rewrites the database text, the cover `.txt`, `.docx`, `.pdf` and the resume `.docx` + `.pdf` in Resume Copies. The form filler (`submit.py`) uses those files, so it sends your version.
+- **Safety:** only the tailored copy is written (`editor._safe_copy` refuses anything outside Resume Copies, so masters are untouched). The truth guard (`tailor.guard` / `guard_cover`) checks your text; if it finds a new number, tool, name or unsupported figure it lists them and the button becomes *Save anyway*.
+- **Resume editor rules:** one line per paragraph, same line count (clear a line to remove it). The contact line and paragraphs with line breaks, tabs or links (skills lists) are not shown and stay as they were.
+- **Kept until Retry:** `jobs.resume_edited_at` / `cover_edited_at`. Retry on an edited role warns first (PC confirm / phone confirm), then discards the edits; a fresh prepare clears the flags.
+- **Phone:** commands `edit_text` and `resume_text` go through the same queue as Approve (PC must be on). Resume text is not stored in Supabase; it is fetched on demand.
+- Code: `editor.py`, `app.py` (`/api/job/<id>/texts`, `/api/job/<id>/edit`), `cloud_sync.py` (`edit_text`, `resume_text`, `refresh_job`), `web/api/command.js`. Test: `tests/test_editor.py` (22 checks, restores everything).
+

@@ -264,7 +264,7 @@ function lockHTML(j){const l=j.lock;if(!l||!l.message)return "";
  if(l.level=="warn")return `<div class="lock lock-warn mt-2" role="alert"><b>${head}:</b> ${esc(l.message)}${btn}</div>`;
  if(l.level=="allowed")return `<div class="lock lock-warn mt-2"><b>Allowed anyway:</b> ${esc(String(l.message).replace(/^Allowed by you - /,""))}</div>`;
  return `<div class="text-xs muted mt-2">${esc(l.message)}</div>`}
-function jobCard(j,mode){const ed=j.edits_log||{};const prep=j.interview_prep||[];const gaps=j.gaps||[];
+function jobCard(j,mode){const canEdit=(mode=="review"||mode=="needs")&&!!j.resume_docx;const ed=j.edits_log||{};const prep=j.interview_prep||[];const gaps=j.gaps||[];
  return `<div class="card p-4 mb-3">
  <div class="flex flex-wrap justify-between gap-2">
   <div><div class="text-base font-semibold">${esc(j.title)}</div>
@@ -280,7 +280,8 @@ function jobCard(j,mode){const ed=j.edits_log||{};const prep=j.interview_prep||[
  ${j.status_note?`<p class="text-sm mt-2 ${mode=="needs"?"text-amber-700":"muted"}">${esc(j.status_note)}</p>`:""}
  <div class="flex flex-wrap gap-1 mt-3"><a class="btn" target="_blank" href="${esc(j.url)}">Posting</a>${j.apply_url&&j.apply_url!=j.url?`<a class="btn" target="_blank" href="${esc(j.apply_url)}">Apply page</a>`:""}
   ${fileLink(j.resume_pdf,"Resume PDF")}${j.resume_docx?`<button class="btn" onclick="openFolder('${encodeURIComponent(j.resume_docx)}')">Show DOCX</button>`:""}</div>
- <details class="mt-3"><summary class="text-sm font-medium">Cover letter</summary><pre class="text-sm mt-2 bg-zinc-50 p-3 rounded">${esc(j.cover_letter||"(none)")}</pre></details>
+ <details class="mt-3" ontoggle="if(this.open)loadResume('${j.id}')"><summary class="text-sm font-medium">Resume (text)${j.resume_edited_at?" - edited by you":""}</summary><pre id="rt-${j.id}" class="text-sm mt-2 bg-zinc-50 p-3 rounded whitespace-pre-wrap">Loading...</pre>${canEdit?`<button class="btn mt-2" onclick="editText('${j.id}','resume')">Edit resume</button>`:""}</details>
+  <details class="mt-2"><summary class="text-sm font-medium">Cover letter${j.cover_edited_at?" - edited by you":""}</summary><pre class="text-sm mt-2 bg-zinc-50 p-3 rounded whitespace-pre-wrap">${esc(j.cover_letter||"(none)")}</pre>${canEdit?`<button class="btn mt-2" onclick="editText('${j.id}','cover')">Edit cover letter</button>`:""}</details>
  <details class="mt-2"><summary class="text-sm font-medium">How to walk into the interview (${prep.length})</summary><ul class="list-disc ml-5 text-sm mt-2">${prep.map(x=>`<li>${esc(x)}</li>`).join("")}</ul>
   ${gaps.length?`<div class="text-sm mt-2 font-medium">Asked for, not on your resume:</div><ul class="list-disc ml-5 text-sm">${gaps.map(x=>`<li>${esc(x)}</li>`).join("")}</ul>`:""}</details>
  <details class="mt-2"><summary class="text-sm font-medium">What changed in the resume (${(ed.applied||[]).length} edits, ${(ed.rejected||[]).length} blocked) - ${esc(j.llm_used||"")}</summary>
@@ -304,10 +305,36 @@ function filterBar(view,fa){const f=FILT[view];const opt=(key,list,label,fmt)=>`
  ${Object.values(f).some(Boolean)?`<button class="btn btn-ghost" onclick="FILT['${view}']=${view=="found"?"{status:'new'}":"{}"};saveFilt();render()">Clear filters</button>`:""}</div>
  ${f.lens?`<p class="text-xs muted mt-2">${esc(LENS_HELP[f.lens])}</p>`:""}</div>`}
 async function act(id,a,note){const r=await fetch(`/api/job/${id}/action`,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({action:a,note})}).then(x=>x.json());
- if(r.ok===false&&r.lock){if(!confirm(r.error+"\n\nApprove anyway?"))return;await api(`/api/job/${id}/action`,{action:a,note,override:true})}else if(r.ok===false)throw new Error(r.error);toast(a=="approve"?"Approved - press Submit approved when ready":a);render();refresh()}
+ if(r.ok===false&&r.lock){if(!confirm(r.error+"\n\nApprove anyway?"))return;await api(`/api/job/${id}/action`,{action:a,note,override:true})}else if(r.ok===false&&r.edited){if(!confirm(r.error+"\n\nRetry anyway and discard your edits?"))return;await api(`/api/job/${id}/action`,{action:a,note,discard:true})}else if(r.ok===false)throw new Error(r.error);toast(a=="approve"?"Approved - press Submit approved when ready":a);render();refresh()}
 async function allowAnyway(id){await api(`/api/job/${id}/action`,{action:"allow"});toast("Allowed - the safeguards will not hold this role again");render();refresh()}
 function retry(id){const n=prompt("What should change? (e.g. 'lean on Shopify more', 'use the admin resume', 'shorter cover letter')");if(n!==null)act(id,"retry",n)}
 async function prep(id){await run("prepare",id)}
+async function loadResume(id){const e=document.getElementById("rt-"+id);if(!e||e.dataset.l)return;const t=await fetch(`/api/job/${id}/texts`).then(x=>x.json()).catch(()=>({}));e.textContent=t.resume_text||"(no resume copy yet)";e.dataset.l="1"}
+let EDLG=null;
+function closeEdit(){if(EDLG){EDLG.remove();EDLG=null}}
+async function editText(id,what){closeEdit();
+ const t=await fetch(`/api/job/${id}/texts`).then(x=>x.json()).catch(()=>({ok:false,error:"could not reach the dashboard"}));
+ if(!t.ok){toast(t.error||"could not load");return}
+ if(!t.editable){toast("Only roles in Review can be edited - this one is "+t.status);return}
+ const val=what=="resume"?t.resume_text:t.cover_letter;
+ if(val==null){toast("There is no "+what+" copy to edit yet");return}
+ const d=document.createElement("div");EDLG=d;
+ d.style.cssText="position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:60;display:flex;align-items:center;justify-content:center;padding:12px";
+ d.innerHTML=`<div style="background:var(--surface,#fff);color:var(--ink,#18181b);border-radius:12px;max-width:860px;width:100%;max-height:94vh;display:flex;flex-direction:column;padding:16px;gap:8px">
+  <div style="font-weight:600">${what=="resume"?"Edit resume":"Edit cover letter"} <span class="muted" style="font-weight:400">- only this role's copy; your master is never touched</span></div>
+  <div class="muted text-xs">${what=="resume"?"One line per paragraph - keep the number of lines the same. Clear a line to remove it. The contact line and skills lists with special layout stay as they are.":"Plain text. Blank line between paragraphs."} The truth guard checks new numbers, tools and names.</div>
+  <textarea id="ed_ta" style="flex:1;min-height:340px;width:100%;font-family:inherit;font-size:14px;line-height:1.45;padding:10px;border:1px solid var(--line,#ccc);border-radius:8px;background:var(--surface,#fff);color:inherit">${esc(val)}</textarea>
+  <div id="ed_msg" class="text-sm" style="color:#b45309"></div>
+  <div style="display:flex;gap:8px;justify-content:flex-end"><button class="btn" onclick="closeEdit()">Cancel</button><button class="btn btn-primary" id="ed_save">Save</button></div></div>`;
+ document.body.appendChild(d);
+ const b=document.getElementById("ed_save");b.onclick=()=>saveEdit(id,what,false)}
+async function saveEdit(id,what,force){const text=document.getElementById("ed_ta").value;const b=document.getElementById("ed_save");
+ b.disabled=true;b.textContent="Saving - rebuilding the files...";
+ const r=await fetch(`/api/job/${id}/edit`,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({what,text,force})}).then(x=>x.json()).catch(e=>({ok:false,error:String(e)}));
+ b.disabled=false;
+ if(r.ok){closeEdit();toast(r.unchanged?"No changes to save":"Saved - "+(what=="resume"?"resume .docx and .pdf":"cover letter .txt, .docx and .pdf")+" rebuilt"+(r.note?". "+r.note:""));render();refresh();return}
+ document.getElementById("ed_msg").textContent=r.error||"Could not save";
+ if(r.guard){b.textContent="Save anyway";b.onclick=()=>saveEdit(id,what,true)}else{b.textContent="Save";b.onclick=()=>saveEdit(id,what,false)}}
 async function openFolder(p){await fetch("/open-folder?path="+p)}
 
 const BOOKMARKLET=`javascript:(()=>{const s=String(getSelection())||document.body.innerText;window.open('http://localhost:8766/#add&u='+encodeURIComponent(location.href)+'&t='+encodeURIComponent(s.slice(0,8000)))})()`;

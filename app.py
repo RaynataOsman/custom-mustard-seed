@@ -269,7 +269,11 @@ def job_action(job_id, body):
             keep = "ready" if job[0].get("resume_docx") else "new"
         db.set_job(c, job_id, allow_override=1, status=keep, lock_note=None, status_note=None)
     elif a == "retry":
-        db.set_job(c, job_id, status="retry", retry_note=note or None)
+        if (job[0].get("resume_edited_at") or job[0].get("cover_edited_at")) and not body.get("discard"):
+            return {"ok": False, "edited": True,
+                    "error": "You edited this role's resume / cover letter by hand. Retry writes a fresh version "
+                             "and your edits would be lost."}
+        db.set_job(c, job_id, status="retry", retry_note=note or None, resume_edited_at=None, cover_edited_at=None)
     elif a == "skip":
         db.set_job(c, job_id, status="skipped", status_note=note or None)
     elif a == "reopen":
@@ -551,6 +555,10 @@ class H(BaseHTTPRequestHandler):
         try:
             if u.path in ("/", "/index.html"):
                 return self._send(200, (ROOT / "ui" / "index.html").read_bytes(), "text/html")
+            m = re.match(r"^/api/job/([\w-]{4,40})/texts$", u.path)
+            if m:
+                import editor
+                return self._send(200, editor.get_texts(m.group(1)))
             if u.path == "/seed.svg":
                 p = ROOT / "ui" / u.path.lstrip("/")
                 return self._send(200, p.read_bytes(), mimetypes.guess_type(p.name)[0])
@@ -634,6 +642,11 @@ class H(BaseHTTPRequestHandler):
             return self._send(403, {"ok": False, "error": "requests from other sites are refused"})
         b = self._body()
         try:
+            m = re.match(r"^/api/job/([\w-]{4,40})/edit$", u.path)
+            if m:
+                import editor
+                return self._send(200, _kicked(editor.save(m.group(1), b.get("what"), b.get("text") or "",
+                                                           bool(b.get("force")))))
             m = re.match(r"/api/job/([^/]+)/action", u.path)
             if m:
                 return self._send(200, _kicked(job_action(m.group(1), b)))

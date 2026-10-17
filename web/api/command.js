@@ -8,7 +8,11 @@ module.exports = guarded(async (req, res) => {
   const b = await body(req);
   let payload;
   if (b.kind === "job_action" && ACTIONS.includes(b.action) && /^[\w-]{4,40}$/.test(b.id || ""))
-    payload = { id: b.id, action: b.action, note: String(b.note || "").slice(0, 500), override: !!b.override };
+    payload = { id: b.id, action: b.action, note: String(b.note || "").slice(0, 500), override: !!b.override, discard: !!b.discard };
+  else if (b.kind === "edit_text" && ["resume", "cover"].includes(b.what) && /^[\w-]{4,40}$/.test(b.id || "") &&
+           typeof b.text === "string" && b.text.length > 0 && b.text.length <= 20000)
+    payload = { id: b.id, what: b.what, text: b.text, force: !!b.force };
+  else if (b.kind === "resume_text" && /^[\w-]{4,40}$/.test(b.id || "")) payload = { id: b.id };
   else if (b.kind === "contact_sent" && Number.isInteger(b.id)) payload = { id: b.id };
   else if (b.kind === "followed_up" && /^[\w-]{4,40}$/.test(b.id || "")) payload = { id: b.id };
   else if (b.kind === "approve_all") payload = { min_score: Number(b.min_score) || 60 };

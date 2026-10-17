@@ -293,7 +293,8 @@ def prepare(limit=None, ids=None):
                        edits_log=json.dumps({"applied": res["edits_applied"], "rejected": res["edits_rejected"],
                                              "fit": res["fit_line"], "master": res["master"],
                                              "cover_letter_pdf": cl_pdf}),
-                       status_note=res["fit_line"] or None, retry_note=None)
+                       status_note=res["fit_line"] or None, retry_note=None,
+                       resume_edited_at=None, cover_edited_at=None)
             db.event(c, job["id"], "prepared", {"llm": res["llm"], "pdf": bool(pdf_path)})
             c.commit()
             if job.get("board") == "Manual" and feature("notion"):

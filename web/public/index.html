@@ -241,7 +241,8 @@ function detailHTML(j, mode) {
   if (!d) return `<div class="small muted" style="margin-top:8px">Loading the full role...</div>`;
   if (d.error) return `<p class="small" style="color:var(--bad-ink)">${esc(d.error)}</p>`;
   const full = mode !== "found";
-  return `${full && d.cover_letter ? `<details open><summary>Cover letter</summary><pre>${esc(d.cover_letter)}</pre><button class="btn btn-ghost small" onclick="copyText(DETAIL['${j.id}'].cover_letter)">Copy cover letter</button></details>` : ""}
+  const canEdit = (mode === "review" || mode === "needs") && ["ready", "approved", "needs_you"].includes(j.status);
+  return `${full && d.resume_text ? `<details open><summary>Resume${d.edited ? " (edited by you)" : ""}</summary><pre>${esc(d.resume_text)}</pre>${canEdit ? `<button class="btn small" onclick="editText('${j.id}','resume')">Edit resume</button>` : ""}</details>` : full && j.files && j.files.resume ? `<div style="margin:8px 0"><button class="btn small" onclick="loadResumeText('${j.id}')">Show resume text${canEdit ? " / edit" : ""}</button><span class="small muted"> (fetched from your PC)</span></div>` : ""}${full && d.cover_letter ? `<details open><summary>Cover letter</summary><pre>${esc(d.cover_letter)}</pre><button class="btn btn-ghost small" onclick="copyText(DETAIL['${j.id}'].cover_letter)">Copy cover letter</button>${canEdit ? `<button class="btn small" onclick="editText('${j.id}','cover')">Edit cover letter</button>` : ""}</details>` : ""}
   ${full && (d.interview_prep || []).length ? `<details><summary>How to walk into the interview (${d.interview_prep.length})</summary><ul class="small">${d.interview_prep.map((x) => `<li>${esc(x)}</li>`).join("")}</ul>${(d.gaps || []).length ? `<p class="small" style="margin:8px 0 0"><b>Asked for, not on your resume:</b></p><ul class="small">${d.gaps.map((x) => `<li>${esc(x)}</li>`).join("")}</ul>` : ""}</details>` : ""}
   ${full ? `<details><summary>Referral contacts (${(d.contacts || []).length})</summary>${contactsHTML(d.contacts)}</details>` : ""}
   ${d.score_reasons ? `<details><summary>Why it scored ${Math.round(d.score || 0)}</summary><p class="small">${esc(d.score_reasons)}</p>${d.geo_reason ? `<p class="small muted">${esc(d.geo_reason)}</p>` : ""}</details>` : ""}
@@ -252,7 +253,7 @@ async function openJob(id, mode) {
   const box = document.getElementById("d-" + id);
   if (!box) return;
   if (box.dataset.open === "1") { box.dataset.open = "0"; box.innerHTML = ""; $("#tb-" + id).textContent = "Open details"; return; }
-  box.dataset.open = "1"; $("#tb-" + id).textContent = "Hide details";
+  box.dataset.open = "1"; box.dataset.mode = mode; $("#tb-" + id).textContent = "Hide details";
   const j = JOBS.find((x) => x.id === id) || { id };
   box.innerHTML = detailHTML(j, mode);
   if (!DETAIL[id]) {
@@ -404,12 +405,36 @@ async function command(body, label) {
   return r.id;
 }
 
-async function act(id, action, note, override) {
+async function act(id, action, note, override, discard) {
   PENDING[id] = "Sending to your PC...";
   draw(true);
-  await command({ kind: "job_action", id, action, note, override }, { approve: "Approve", retry: "Retry", skip: "Skip", reopen: "Undo", done: "Marked submitted", allow: "Allowed anyway" }[action] || action);
+  await command({ kind: "job_action", id, action, note, override, discard }, { approve: "Approve", retry: "Retry", skip: "Skip", reopen: "Undo", done: "Marked submitted", allow: "Allowed anyway" }[action] || action);
 }
 function retry(id) { const n = prompt("What should change? (e.g. 'lean on Shopify more', 'use the admin resume', 'shorter cover letter')"); if (n !== null) act(id, "retry", n); }
+let EDLG = null;
+function closeEdit() { if (EDLG) { EDLG.remove(); EDLG = null; } }
+async function loadResumeText(id) { await command({ kind: "resume_text", id }, "Resume text"); }
+function editText(id, what) {
+  const d = DETAIL[id];
+  const val = d && (what === "resume" ? d.resume_text : d.cover_letter);
+  if (val == null) { toast("Open the role's details first"); return; }
+  closeEdit();
+  const w = document.createElement("div"); EDLG = w;
+  w.style.cssText = "position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:60;display:flex;align-items:flex-end;justify-content:center";
+  w.innerHTML = `<div style="background:var(--surface);color:var(--ink);border-radius:16px 16px 0 0;width:100%;max-width:760px;height:92vh;display:flex;flex-direction:column;padding:14px 16px;gap:8px">
+    <div class="title">${what === "resume" ? "Edit resume" : "Edit cover letter"}</div>
+    <div class="small muted">${what === "resume" ? "One line per paragraph - keep the number of lines the same; clear a line to remove it. The contact line and skills lists with special layout stay as they are." : "Plain text, blank line between paragraphs."} Only this role's copy changes. Saved on your PC, which must be on.</div>
+    <textarea id="ed_ta" style="flex:1;min-height:200px;font-size:15px;line-height:1.45">${esc(val)}</textarea>
+    <div class="row" style="justify-content:flex-end"><button class="btn" onclick="closeEdit()">Cancel</button><button class="btn btn-green" id="ed_save">Save</button></div></div>`;
+  document.body.appendChild(w);
+  document.getElementById("ed_save").onclick = () => sendEdit(id, what, document.getElementById("ed_ta").value, false);
+}
+async function sendEdit(id, what, text, force) {
+  closeEdit();
+  PENDING[id] = "Saving on your PC (rebuilding the files)...";
+  draw(true);
+  await command({ kind: "edit_text", id, what, text, force: !!force }, what === "resume" ? "Resume saved" : "Cover letter saved");
+}
 async function sent(id) { await command({ kind: "contact_sent", id }, "Marked sent"); }
 async function followedUp(id) { await command({ kind: "followed_up", id }, "Marked followed up"); }
 async function approveAll() { await command({ kind: "approve_all", min_score: +$("#ms").value }, "Approve all"); }
@@ -430,7 +455,18 @@ async function loadState() {
     if (CMD_WATCH[c.id] && c.status === "done") {
       const label = CMD_WATCH[c.id]; delete CMD_WATCH[c.id];
       const res = c.result || {};
-      if (res.ok === false && res.lock && c.kind === "job_action") {
+      if (c.kind === "resume_text" && res.ok !== false) {
+        DETAIL[c.payload.id] = Object.assign(DETAIL[c.payload.id] || {}, { resume_text: res.text || "(empty)" });
+        const box = document.getElementById("d-" + c.payload.id);
+        if (box && box.dataset.open === "1") box.innerHTML = detailHTML(JOBS.find((x) => x.id === c.payload.id) || { id: c.payload.id }, box.dataset.mode || "review");
+        continue;
+      }
+      if (res.ok === false && res.guard && c.kind === "edit_text") {
+        if (confirm(`${res.error}\n\nSave anyway?`)) { sendEdit(c.payload.id, c.payload.what, c.payload.text, true); continue; }
+        toast("Not saved");
+      } else if (res.ok === false && res.edited && c.kind === "job_action") {
+        if (confirm(`${res.error}\n\nRetry anyway and discard your edits?`)) { act(c.payload.id, "retry", c.payload.note, false, true); continue; }
+      } else if (res.ok === false && res.lock && c.kind === "job_action") {
         if (confirm(`${res.error}\n\nApprove anyway?`)) { act(c.payload.id, "approve", c.payload.note, true); continue; }
       } else if (res.ok === false) toast(`${label}: ${res.error || "failed"}`);
       else toast(`${label}: done on your PC`);
