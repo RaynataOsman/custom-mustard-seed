@@ -73,7 +73,7 @@ def _sset(c, k, v):
 def _rows_to_sync(c, s):
     rows = db.rows(c, f"""SELECT * FROM jobs WHERE status IN ({','.join('?' * len(ACTIVE))})
                           OR (status='submitted' AND coalesce(applied_at, updated_at) >= date('now','-90 day'))
-                          OR (status='skipped' AND updated_at >= date('now','-7 day'))""", ACTIVE)
+                          OR (status='skipped' AND (updated_at >= date('now','-7 day') OR lock_note IS NOT NULL))""", ACTIVE)
     rows += db.rows(c, """SELECT * FROM jobs WHERE status='new' AND coalesce(geo_ok,1)<>0
                           ORDER BY score DESC, found_at DESC LIMIT ?""", (s["found_limit"],))
     return rows
@@ -99,11 +99,7 @@ def _payload(c, j):
     full = j["status"] in ("ready", "approved", "needs_you", "retry", "submitted")
     contacts = db.rows(c, "SELECT id, name, headline, url, kind, rank, note, followup, sent, sent_at FROM contacts "
                           "WHERE job_id=? ORDER BY rank", (j["id"],))
-    lock = None
-    if j["status"] in ("new", "ready", "approved", "retry", "needs_you"):
-        lock = safeguards.check(c, j)
-    elif j.get("lock_note"):
-        lock = {"level": "info", "message": j["lock_note"]}
+    lock = safeguards.lock_for(c, j)
 
     def js(v):
         try:

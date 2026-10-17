@@ -256,8 +256,13 @@ async function copyOpen(t,u){await navigator.clipboard.writeText(t);window.open(
 async function sent(id){await api(`/api/contact/${id}/sent`,{});toast("Marked sent");render();refresh()}
 
 function lockHTML(j){const l=j.lock;if(!l||!l.message)return "";
- if(l.level=="block")return `<div class="lock lock-block mt-2" role="alert"><b>Hold:</b> ${esc(l.message)}</div>`;
- if(l.level=="warn")return `<div class="lock lock-warn mt-2" role="alert"><b>Same company, different resume:</b> ${esc(l.message)}</div>`;
+ const can=["block","warn","skipped"].includes(l.level)&&["new","ready","retry","skipped"].includes(j.status);
+ const btn=can?` <button class="btn btn-ghost" style="padding:2px 10px;min-height:0" title="Never hold or skip this role for company / recruiter reasons again" onclick="allowAnyway('${j.id}')">Allow anyway</button>`:"";
+ const head={platform:"Platform rule",company:"Same company",recruiter:"Same recruiter"}[l.rule]||"Safeguard";
+ if(l.level=="block")return `<div class="lock lock-block mt-2" role="alert"><b>Hold:</b> ${esc(l.message)}${btn}</div>`;
+ if(l.level=="skipped")return `<div class="lock lock-block mt-2" role="alert"><b>Skipped by safeguard:</b> ${esc(l.message)}${btn}</div>`;
+ if(l.level=="warn")return `<div class="lock lock-warn mt-2" role="alert"><b>${head}:</b> ${esc(l.message)}${btn}</div>`;
+ if(l.level=="allowed")return `<div class="lock lock-warn mt-2"><b>Allowed anyway:</b> ${esc(String(l.message).replace(/^Allowed by you - /,""))}</div>`;
  return `<div class="text-xs muted mt-2">${esc(l.message)}</div>`}
 function jobCard(j,mode){const ed=j.edits_log||{};const prep=j.interview_prep||[];const gaps=j.gaps||[];
  return `<div class="card p-4 mb-3">
@@ -300,6 +305,7 @@ function filterBar(view,fa){const f=FILT[view];const opt=(key,list,label,fmt)=>`
  ${f.lens?`<p class="text-xs muted mt-2">${esc(LENS_HELP[f.lens])}</p>`:""}</div>`}
 async function act(id,a,note){const r=await fetch(`/api/job/${id}/action`,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({action:a,note})}).then(x=>x.json());
  if(r.ok===false&&r.lock){if(!confirm(r.error+"\n\nApprove anyway?"))return;await api(`/api/job/${id}/action`,{action:a,note,override:true})}else if(r.ok===false)throw new Error(r.error);toast(a=="approve"?"Approved - press Submit approved when ready":a);render();refresh()}
+async function allowAnyway(id){await api(`/api/job/${id}/action`,{action:"allow"});toast("Allowed - the safeguards will not hold this role again");render();refresh()}
 function retry(id){const n=prompt("What should change? (e.g. 'lean on Shopify more', 'use the admin resume', 'shorter cover letter')");if(n!==null)act(id,"retry",n)}
 async function prep(id){await run("prepare",id)}
 async function openFolder(p){await fetch("/open-folder?path="+p)}
@@ -312,7 +318,7 @@ function manualJob(j){const ed=j.edits_log||{};const cl=ed.cover_letter_pdf;cons
   <div class="muted text-xs">${esc(j.family)} ${esc(j.tier)} | fit ${Math.round(j.score||0)}${j.notion_page_id?" | in Notion":""}</div></div>
   <div class="flex flex-wrap gap-1">${fileLink(j.resume_pdf,"Resume PDF")}${fileLink(j.resume_docx,"Resume DOCX")}${fileLink(cl,"Cover letter PDF")}${fileLink(cld,"Cover letter DOCX")}
   ${j.status=="ready"?`<button class="btn btn-green" onclick="act('${j.id}','done')">I submitted it</button>`:""}
-  ${["new","filtered","failed","skipped"].includes(j.status)?`<button class="btn" onclick="mPrep('${j.id}')">Prepare</button>`:""}</div></div>
+  ${j.lock&&j.lock.level=="skipped"?`<button class="btn" onclick="allowAnyway('${j.id}')">Allow anyway</button>`:""}${["new","filtered","failed","skipped"].includes(j.status)?`<button class="btn" onclick="mPrep('${j.id}')">Prepare</button>`:""}</div></div>
   ${j.status=="ready"?`<details class="mt-2"><summary class="text-xs font-medium">Cover letter text, interview prep, referral notes</summary>${jobCard(j,"applied")}</details>`:""}</div>`}
 async function analyse(){const version=renderVersion;const b={};["url","title","company","location","salary","text"].forEach(k=>b[k]=$("#m_"+k).value);
  $("#mres").innerHTML=`<div class="card p-4 text-sm muted">Reading the job and weighing it against your resumes... (up to 30s with the AI odds)</div>`;
@@ -378,7 +384,7 @@ async function renderView(version){const v=$("#view");
    <div class="card p-4 mt-3 text-sm"><b>Apply once, not scraped:</b> ${OV.not_scraped.map(esc).join(", ")}</div>`;
   v.insertAdjacentHTML("afterbegin",`<div class="card p-3 mb-3 text-sm muted">Hover a status to see the full message. <b>0 seen</b> means the site loaded but showed no roles matching your resumes this time - normal for small boards. Red means the site blocked or failed; the other boards still run.</div>`)}
  else if(tab=="run"){const runs=await api("/api/runs");
-  v.innerHTML=`<div class="flex flex-wrap gap-2 mb-3"><button class="btn" onclick="run('scan')">Scan boards</button><button class="btn" onclick="run('prepare')">Prepare best new roles</button><button class="btn" onclick="run('submit')">Submit approved</button><button class="btn" onclick="run('backfill')">Backfill referrals for tracker rows</button><button class="btn" onclick="run('referrals')" title="Find people to ask for referrals, for roles in Review that have none">Find referrals for Review</button><button class="btn" onclick="run('replies')" title="Read employer replies in Gmail (read-only) and move Notion to Interview / Rejected / Offered">Check employer replies</button><button class="btn" onclick="run('expire')" title="Move roles older than 3 weeks out of Review">Clear stale roles</button><button class="btn" onclick="run('retriage')" title="Re-sort every job already found using your latest role, time-zone and employer rules">Re-sort found jobs (retriage)</button></div>
+  v.innerHTML=`<div class="flex flex-wrap gap-2 mb-3"><button class="btn" onclick="run('scan')">Scan boards</button><button class="btn" onclick="run('prepare')">Prepare best new roles</button><button class="btn" onclick="run('submit')">Submit approved</button><button class="btn" onclick="run('backfill')">Backfill referrals for tracker rows</button><button class="btn" onclick="run('referrals')" title="Find people to ask for referrals, for roles in Review that have none">Find referrals for Review</button><button class="btn" onclick="run('replies')" title="Read employer replies in Gmail (read-only) and move Notion to Interview / Rejected / Offered">Check employer replies</button><button class="btn" onclick="run('expire')" title="Move roles older than 3 weeks out of Review">Clear stale roles</button><button class="btn" onclick="run('sweep')" title="Keep only the best-fit role per company and per recruiter among the roles in Review; the rest are skipped (press Allow anyway on any you want back)">Best role per company</button><button class="btn" onclick="run('retriage')" title="Re-sort every job already found using your latest role, time-zone and employer rules">Re-sort found jobs (retriage)</button></div>
   <div class="card p-3 mb-3 text-sm">${runs.map(r=>`<div class="flex justify-between py-1 border-b border-zinc-100"><span>${esc(r.job)} ${esc(r.arg||"")} - ${esc(r.started.replace("T"," "))}</span><span><span class="badge">${esc(r.status)}</span> <button class="btn btn-ghost" onclick="CURRUN='${r.id}';render()">log</button></span></div>`).join("")||"<span class='muted'>No runs this session.</span>"}</div>
   <pre id="log" class="card p-3 text-xs h-[420px] overflow-auto bg-zinc-900 text-zinc-100"></pre>`;if(CURRUN)tail(CURRUN,0,version)}
  else if(tab=="settings"){const values=await Promise.all(["features","presets","profile","keys","config","cover_example","safeguards","cloud"].map(k=>api("/api/"+k)));[FEAT,PRE,PROF]=values;const keys=values[3],cfg=values[4],cex=values[5],sg=values[6],cl=values[7];
@@ -407,10 +413,11 @@ async function renderView(version){const v=$("#view");
    <p class="text-xs muted mt-1">${cl.has_password?"Your online password is CLOUD_PASSWORD in Keys - change it there any time.":"Set CLOUD_PASSWORD in Keys to choose your online password."}${cl.has_token?"":" CLOUD_TOKEN is missing."}</p></div>
   <div class="card p-4 text-sm md:col-span-2"><h3 class="font-semibold mb-2">Safeguards (one company, one version of you)</h3>
    <label class="flex items-center gap-2 py-1"><input type="checkbox" id="sg_on" ${sg.enabled?"checked":""}> Check every role against what you already sent to that company</label>
-   <div class="flex flex-wrap items-center gap-3 py-1"><span>Look back</span><input id="sg_days" type="number" min="7" max="365" value="${esc(sg.lookback_days)}" class="w-20"><span>days. When a company already has a different resume version from you:</span>
-    <label class="flex items-center gap-1"><input type="radio" name="sg_mode" value="warn" ${sg.company_mode!="skip"?"checked":""}> warn me in Review</label>
-    <label class="flex items-center gap-1"><input type="radio" name="sg_mode" value="skip" ${sg.company_mode=="skip"?"checked":""}> skip the role</label></div>
+   <div class="flex flex-wrap items-center gap-3 py-1"><span>Look back</span><input id="sg_days" type="number" min="7" max="365" value="${esc(sg.lookback_days)}" class="w-20"><span>days. When a company (or recruiter) already has an application from you, or a better-fit role there is waiting:</span>
+    <label class="flex items-center gap-1"><input type="radio" name="sg_mode" value="warn" ${sg.company_mode!="skip"?"checked":""}> only warn me in Review</label>
+    <label class="flex items-center gap-1"><input type="radio" name="sg_mode" value="skip" ${sg.company_mode=="skip"?"checked":""}> hold / skip the weaker role (recommended)</label></div>
    <label class="flex items-center gap-2 py-1"><input type="checkbox" id="sg_plat" ${sg.platform_rule?"checked":""}> Agencies and talent platforms get one resume family only (strongest match wins)</label>
+   <label class="flex items-center gap-2 py-1"><input type="checkbox" id="sg_rec" ${sg.recruiter_check!==false?"checked":""}> One application per recruiter: roles that name the same contact email, company email domain, hiring account or LinkedIn recruiter count as one company</label>
    <label class="flex items-center gap-2 py-1"><input type="checkbox" id="sg_ref" ${sg.referral_dedup?"checked":""}> Never draft a second referral note to someone already lined up for another role</label>
    <label class="block mt-2"><span class="text-xs muted">Agencies / talent platforms (one per line)</span><textarea id="sg_list" class="w-full h-28 text-xs">${esc((sg.platforms||[]).join("\n"))}</textarea></label>
    <button class="btn btn-primary mt-2" onclick="saveSafe()">Save safeguards</button></div>
@@ -443,7 +450,7 @@ async function upMaster(){const f=$("#up_file").files[0];if(!f){toast("Choose a 
  const r=await api("/api/master/upload",{family:$("#up_f").value,tier:$("#up_t").value,data_b64:btoa(bin)});toast(r.ok?"Saved as "+r.saved:r.error);render()}
 async function approveAll(){const r=await api("/api/approve_all",{min_score:+$("#ms").value});toast(`Approved ${r.approved}`+(r.held?` - ${r.held} held back with a same-company warning (approve those one by one)`:""));render();refresh()}
 async function saveCloud(){await api("/api/cloud",{enabled:$("#cl_on").checked});toast("Saved");setTimeout(render,1500)}
-async function saveSafe(){const b={enabled:$("#sg_on").checked,platform_rule:$("#sg_plat").checked,referral_dedup:$("#sg_ref").checked,company_mode:document.querySelector("input[name=sg_mode]:checked").value,lookback_days:$("#sg_days").value,platforms:$("#sg_list").value.split(/[\n,]+/).map(x=>x.trim()).filter(Boolean)};await api("/api/safeguards",b);toast("Saved")}
+async function saveSafe(){const b={enabled:$("#sg_on").checked,platform_rule:$("#sg_plat").checked,referral_dedup:$("#sg_ref").checked,recruiter_check:$("#sg_rec").checked,company_mode:document.querySelector("input[name=sg_mode]:checked").value,lookback_days:$("#sg_days").value,platforms:$("#sg_list").value.split(/[\n,]+/).map(x=>x.trim()).filter(Boolean)};await api("/api/safeguards",b);toast("Saved")}
 async function tail(id,off,version){if(tab!="run"||CURRUN!=id||version!==renderVersion)return;const r=await api(`/api/run/${id}/log?offset=${off}`);const l=$("#log");if(!l||tab!=="run"||CURRUN!==id||version!==renderVersion)return;if(off==0)l.textContent="";l.textContent+=r.text;l.scrollTop=l.scrollHeight;
  if(r.status=="running")setTimeout(()=>tail(id,r.offset,version),1500);else{refresh()}}
 async function testLLM(){const output=$("#llmres");output.textContent="testing...";try{output.textContent=JSON.stringify(await api("/api/llm"),null,1)}catch(error){output.textContent=error.message}}

@@ -182,10 +182,9 @@ def list_jobs(q):
     import safeguards
     sg = safeguards.settings()
     for j in jobs:
-        if j["status"] in ("new", "ready", "approved", "retry", "needs_you"):
-            j["lock"] = safeguards.check(c, j)
-        elif j.get("lock_note"):
-            j["lock"] = {"level": "info", "message": j["lock_note"]}
+        lk = safeguards.lock_for(c, j)
+        if lk:
+            j["lock"] = lk
         j["version"] = j.get("version_sent") or safeguards.version_label(j.get("family"), j.get("tier"))
         j["is_platform"] = safeguards.is_platform(j, sg)
         j["contacts"] = contacts.get(j["id"], [])
@@ -260,10 +259,15 @@ def job_action(job_id, body):
         if guard and guard["level"] == "block" and not body.get("override"):
             return {"ok": False, "error": guard["message"], "lock": guard}
         if guard and guard["level"] == "wins":
+            lose = guard.get("loser_note") or f"Platform rule: you approved {job[0]['title']} at {job[0]['company']} instead"
             for lid in guard["losers"]:
-                db.set_job(c, lid, status="skipped", lock_note=guard["message"],
-                           status_note=f"Platform rule: you approved {job[0]['title']} at {job[0]['company']} instead")
+                db.set_job(c, lid, status="skipped", lock_note=lose, status_note=lose)
         db.set_job(c, job_id, status="approved", lock_note=safeguards.note_for(guard))
+    elif a == "allow":  # "Allow anyway": the safeguards never hold or skip this role again
+        keep = job[0]["status"]
+        if keep == "skipped":
+            keep = "ready" if job[0].get("resume_docx") else "new"
+        db.set_job(c, job_id, allow_override=1, status=keep, lock_note=None, status_note=None)
     elif a == "retry":
         db.set_job(c, job_id, status="retry", retry_note=note or None)
     elif a == "skip":
@@ -300,9 +304,9 @@ def approve_all(body):
             held += 1
             continue
         if guard and guard["level"] == "wins":
+            lose = guard.get("loser_note") or f"Platform rule: {j['title']} at {j['company']} was approved instead"
             for lid in guard["losers"]:
-                db.set_job(c, lid, status="skipped", lock_note=guard["message"],
-                           status_note=f"Platform rule: {j['title']} at {j['company']} was approved instead")
+                db.set_job(c, lid, status="skipped", lock_note=lose, status_note=lose)
         db.set_job(c, j["id"], status="approved", lock_note=safeguards.note_for(guard))
         c.commit()  # later roles in this loop must see this one as approved
         n += 1
@@ -332,14 +336,15 @@ def cloud_set(b):
 def safeguards_get():
     import safeguards
     s = safeguards.settings()
-    return {k: s[k] for k in ("enabled", "lookback_days", "company_mode", "platform_rule", "referral_dedup", "platforms")}
+    return {k: s[k] for k in ("enabled", "lookback_days", "company_mode", "platform_rule", "referral_dedup",
+                              "recruiter_check", "platforms")}
 
 
 def safeguards_set(b):
     import safeguards
     cfg = load_config()
     sg = cfg.setdefault("safeguards", {})
-    for k in ("enabled", "platform_rule", "referral_dedup"):
+    for k in ("enabled", "platform_rule", "referral_dedup", "recruiter_check"):
         if k in b:
             sg[k] = bool(b[k])
     if b.get("company_mode") in ("warn", "skip"):

@@ -238,9 +238,11 @@ def prepare(limit=None, ids=None):
                              ORDER BY (status='retry') DESC, score DESC, found_at DESC LIMIT ?""",
                        (cfg["resume"]["min_score_to_prepare"], limit))
     try:
-        n = safeguards.sweep(c, log=log, cfg=cfg)
+        n, m = safeguards.sweep_all(c, log=log, cfg=cfg)
         if n:
             log(f"platform rule: {n} role(s) already in Review skipped (one family per platform)")
+        if m:
+            log(f"one application per company/recruiter: {m} weaker role(s) already in Review skipped")
     except Exception as e:
         log(f"platform sweep skipped: {e}")
     log(f"preparing {len(jobs)} role(s)")
@@ -265,10 +267,10 @@ def prepare(limit=None, ids=None):
                 log(f"  {job['company']}: skipped - {guard['message']}")
                 continue
             if guard and guard["level"] == "wins":
+                lose = guard.get("loser_note") or f"Platform rule: a stronger match at {job['company']} was chosen ({job['title']})"
                 for lid in guard["losers"]:
-                    db.set_job(c, lid, status="skipped", lock_note=guard["message"],
-                               status_note=f"Platform rule: a stronger match at {job['company']} was chosen ({job['title']})")
-                    db.event(c, lid, "safeguard_skip", "platform rule - stronger match chosen")
+                    db.set_job(c, lid, status="skipped", lock_note=lose, status_note=lose)
+                    db.event(c, lid, "safeguard_skip", lose)
                 log(f"  {job['company']}: {guard['message']}")
             db.set_job(c, job["id"], lock_note=safeguards.note_for(guard) if guard and guard["level"] != "wins" else None)
             log(f"  {job['company']} - {job['title']} [{job['family']} {job['tier']}]"
@@ -498,8 +500,13 @@ if __name__ == "__main__":
     elif cmd == "tiers":
         notion_tiers()
     elif cmd == "sweep":
-        n = safeguards.sweep(db.conn(), log=log)
-        log(f"platform rule applied to roles already in Review: {n} skipped")
+        dry = len(sys.argv) > 2 and sys.argv[2] == "dry"  # "sweep dry" only counts, changes nothing
+        p, n = safeguards.sweep_all(db.conn(), log=log, dry_run=dry)
+        if dry:
+            log(f"dry run: {n} weaker role(s) in Review would be skipped (best role per company / recruiter)")
+        else:
+            log(f"safeguards applied to roles already in Review: {p} skipped by the platform rule, "
+                f"{n} by best-role-per-company / recruiter")
     elif cmd == "expire":
         import lifecycle
         lifecycle.expire_stale(log)

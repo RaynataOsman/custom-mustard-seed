@@ -56,7 +56,7 @@ Scheduled task (`schedule.bat`, every 3 h) runs `pipeline.py all` = scan + expir
 | Per-board health words | **Built 16 Oct** | ok / quiet / needs sign-in / blocked / error / broken: page empty / broken: no job links / empty feed |
 | Listing-page / alert-header filter | **Built 16 Oct** | `triage.is_listing_title` |
 | Triage rules (family, tier, geo, employer, time zone) | Built | Weighted employer classes; `dev_first` titles |
-| Safeguards (90-day company lock, one family per platform, version labels, referral dedup) | Built | Job-board hostnames no longer count as employers (16 Oct) |
+| Safeguards v2 (one application per company and per recruiter, best role wins, one family per platform, version labels, referral dedup, Allow anyway) | **Built 17 Oct** | See section 9. Default is now skip; online app mirrors it |
 | AI tailoring with truth guard | Built | Free LLM chain now self-heals retired models (16 Oct) |
 | Cover letter + interview prep + gaps | Built | Example-driven voice, 250-350 words |
 | Referral finder | Built | SearXNG -> real Chrome DDG/Yahoo. SearXNG down is now detected once per 10 min |
@@ -154,3 +154,24 @@ test_safeguards, test_audit_fixes. test_dashboard to re-run after the app.py res
 No scraper stays fixed: sites change layouts and add bot walls. The engine now reports that instead of
 hiding it. Weekly: open Boards, look for red "Layout changed" or amber "Sign in once" badges, and run
 `data/audit_boards2.py`, `data/audit_pipeline.py`, the test suites and the LLM health ping.
+
+---
+
+## 9. Safeguards v2 - one application per company and recruiter (17 Oct 2026)
+
+Why: the over-employment method must never put two applications, or two resume versions, in front of the same
+company or recruiter, and for multi-role adverts only the best-fitting role should go out.
+
+| Rule | Behaviour |
+|---|---|
+| Company lock (`company_mode`, default **skip**) | Another role at the same company already approved / sent in the last 90 days: this role is held ("Already applied 3 Oct with HM_ Dev - one application per company"). Several roles only waiting in Review: the best fit wins, the rest are skipped ("Skipped - weaker match: ..."). Ties go to the newer role. `warn` still available in Settings |
+| Platform rule | Unchanged: one resume family per agency / talent platform |
+| Recruiter check (`recruiter_check`, default on) | Roles at different companies that name the same contact email, the same company email domain (free mail excluded), the same hiring account (Greenhouse / Lever / Ashby / Workable / SmartRecruiters / Recruitee slug) or the same LinkedIn recruiter profile count as one recipient. Keys are stored in `jobs.contact_keys` and refreshed when a description changes |
+| Allow anyway | Button on any held or skipped role (PC and online). Sets `jobs.allow_override`; the safeguards never hold or skip that role again. A skipped role returns to Review (or to Found if it was never prepared) |
+| Best role per company run | Runs > "Best role per company" (`pipeline.py sweep`, `sweep dry` only counts). Also runs automatically at the start of every prepare |
+| Online app | Same banners, Allow anyway, a "Skipped by safeguards" list in Review and the run button. Command kind `job_action` with action `allow` |
+
+Never grouped: hidden employers ("Confidential", "Stealth"...) and job-board hostnames.
+Limits: matching is by normalised name, so "Acme Labs" and "Acme Corp" stay separate unless they share a recruiter key; roles whose ad names no email, hiring account or LinkedIn profile cannot be matched to a recruiter.
+First live run (17 Oct): 350 of 993 roles in Review skipped (323 company, 26 recruiter, 1 platform); 643 remain. Backup before the change: `data\backup_2026-10-17\` (code, config, jobs.db).
+Tests: `tests/test_safeguards_v2.py`.

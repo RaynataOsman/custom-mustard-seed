@@ -63,11 +63,15 @@ def conn():
         return c
     c.execute("PRAGMA journal_mode=WAL")
     c.executescript(SCHEMA)
-    for col in ("employer_type", "employer_reason", "tz_reason", "company_norm", "lock_note", "version_sent"):
+    for col in ("employer_type", "employer_reason", "tz_reason", "company_norm", "lock_note", "version_sent", "contact_keys"):
         try:
             c.execute(f"ALTER TABLE jobs ADD COLUMN {col} TEXT")
         except sqlite3.OperationalError:
             pass  # already there
+    try:
+        c.execute("ALTER TABLE jobs ADD COLUMN allow_override INTEGER DEFAULT 0")  # "Allow anyway" pressed by the owner
+    except sqlite3.OperationalError:
+        pass
     for col, typ in (("links", "INTEGER"), ("hits", "INTEGER"), ("health", "TEXT")):
         try:
             c.execute(f"ALTER TABLE board_runs ADD COLUMN {col} {typ}")
@@ -81,6 +85,7 @@ def conn():
     c.execute("CREATE INDEX IF NOT EXISTS ix_contacts_url_norm ON contacts(url_norm)")
     c.execute("CREATE INDEX IF NOT EXISTS ix_jobs_status ON jobs(status)")
     c.execute("CREATE INDEX IF NOT EXISTS ix_board_runs_board ON board_runs(board, id)")
+    c.execute("CREATE INDEX IF NOT EXISTS ix_jobs_ck_null ON jobs(status) WHERE contact_keys IS NULL")
     _backfill_norms(c)
     _SCHEMA_DONE.add(str(DB_PATH))
     return c
@@ -95,7 +100,13 @@ def _backfill_norms(c):
     people = c.execute("SELECT id, url FROM contacts WHERE url_norm IS NULL").fetchall()
     if people:
         c.executemany("UPDATE contacts SET url_norm=? WHERE id=?", [(norm_profile_url(r["url"]), r["id"]) for r in people])
-    if jobs or people:
+    keyrows = c.execute("SELECT id, apply_url, url, description FROM jobs WHERE contact_keys IS NULL "
+                        "AND status NOT IN ('filtered','expired','failed')").fetchall()
+    if keyrows:  # recruiter keys (emails / hiring account / LinkedIn) used by the recruiter safeguard
+        from safeguards import contact_keys
+        c.executemany("UPDATE jobs SET contact_keys=? WHERE id=?",
+                      [(contact_keys(r["apply_url"], r["url"], r["description"]), r["id"]) for r in keyrows])
+    if jobs or people or keyrows:
         c.commit()
 
 
@@ -106,9 +117,10 @@ def upsert_job(c, j):
         # keep a better (longer) description / apply url if we found one now
         c.execute("""UPDATE jobs SET description=CASE WHEN length(coalesce(?,''))>length(coalesce(description,''))
                      THEN ? ELSE description END,
+                     contact_keys=CASE WHEN length(coalesce(?,''))>length(coalesce(description,'')) THEN NULL ELSE contact_keys END,
                      apply_url=coalesce(apply_url, ?), company=coalesce(nullif(company,''), ?),
                      updated_at=? WHERE id=?""",
-                  (j.get("description"), j.get("description"), j.get("apply_url"), j.get("company"), now_iso(), j["id"]))
+                  (j.get("description"), j.get("description"), j.get("description"), j.get("apply_url"), j.get("company"), now_iso(), j["id"]))
         if j.get("company"):
             from safeguards import norm_company
             c.execute("UPDATE jobs SET company_norm=? WHERE id=? AND coalesce(company_norm,'')=''",

@@ -74,6 +74,7 @@ select{background:var(--surface);border:1px solid var(--line);border-radius:10px
 const $ = (s, el = document) => el.querySelector(s);
 const esc = (s) => (s == null ? "" : String(s)).replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
 let NOTES = {}, TAB = (location.hash.slice(1) || "review"), STATE = null, JOBS = [], PENDING = {}, CMD_WATCH = {}, DETAIL = {}, SHOWN = {}, LOADED_FOR = null;
+let HELD = false;
 const TABS = [["review", "Review"], ["needs", "Needs you"], ["applied", "Applied"], ["referrals", "Referrals"], ["found", "Found"], ["boards", "Boards"], ["runs", "Runs"]];
 const STATUS_FOR = { review: "ready,approved,retry,preparing", needs: "needs_you,failed", applied: "submitted,submitting", referrals: "submitted,ready,approved,needs_you", found: "new" };
 const PAGE = 30;
@@ -216,8 +217,13 @@ function geoBadge(j) {
 
 function lockHTML(j) {
   const l = j.lock; if (!l || !l.message) return "";
-  if (l.level === "block") return `<div class="lock lock-block" role="alert"><b>Hold:</b> ${esc(l.message)}</div>`;
-  if (l.level === "warn") return `<div class="lock lock-warn" role="alert"><b>Same company, different resume:</b> ${esc(l.message)}</div>`;
+  const can = ["block", "warn", "skipped"].includes(l.level) && ["new", "ready", "retry", "skipped"].includes(j.status);
+  const btn = can ? ` <button class="btn btn-ghost" style="min-height:34px;padding:2px 12px" onclick="act('${j.id}','allow')">Allow anyway</button>` : "";
+  const head = { platform: "Platform rule", company: "Same company", recruiter: "Same recruiter" }[l.rule] || "Safeguard";
+  if (l.level === "block") return `<div class="lock lock-block" role="alert"><b>Hold:</b> ${esc(l.message)}${btn}</div>`;
+  if (l.level === "skipped") return `<div class="lock lock-block" role="alert"><b>Skipped by safeguard:</b> ${esc(l.message)}${btn}</div>`;
+  if (l.level === "warn") return `<div class="lock lock-warn" role="alert"><b>${head}:</b> ${esc(l.message)}${btn}</div>`;
+  if (l.level === "allowed") return `<div class="lock lock-warn"><b>Allowed anyway:</b> ${esc(String(l.message).replace(/^Allowed by you - /, ""))}</div>`;
   return `<div class="small muted" style="margin-top:6px">${esc(l.message)}</div>`;
 }
 
@@ -295,7 +301,7 @@ async function render() {
   location.hash = TAB;
   if (TAB === "runs") return renderRuns();
   if (TAB === "boards") return renderBoards();
-  const status = STATUS_FOR[TAB];
+  const status = TAB === "review" && HELD ? "skipped" : STATUS_FOR[TAB];
   if (LOADED_FOR !== status) { JOBS = []; frame(`<div class="card empty">Loading...</div>`); }
   try { JOBS = await api(`/api/jobs?status=${status}&limit=${TAB === "found" ? 400 : 1500}`); LOADED_FOR = status; }
   catch (e) { frame(empty(esc(e.message))); return; }
@@ -306,13 +312,18 @@ function draw(keepScroll) {
   const y = window.scrollY;
   const f = getF();
   let html = "";
-  if (TAB === "review") {
+  if (TAB === "review" && HELD) {
+    const held = JOBS.filter((j) => j.lock && j.lock.level === "skipped");
+    html += `<div class="card row between"><span><b>Skipped by safeguards (${held.length})</b><br><span class="small muted">One application per company and per recruiter: these lost to a better-fit or already-sent role. Tap Allow anyway to bring one back to Review.</span></span><button class="btn" onclick="toggleHeld()">Back to Review</button></div>`;
+    html += held.length ? pageOf(held, "held") : empty("Nothing is being held by the safeguards.");
+  } else if (TAB === "review") {
     const ov = STATE?.overview?.v || {};
     html += `<div class="metrics">${[["Ready to review", (STATE?.counts?.ready || 0), "review"], ["Need your touch", counts().needs, "needs"], ["Applied this week", ov.applied_week || 0, "applied"], ["Referral notes", ov.contacts_pending || 0, "referrals"]].map(([l, n, k]) => `<button class="metric" onclick="go('${k}')"><span class="small muted">${l}</span><strong>${n}</strong></button>`).join("")}</div>`;
     const rows = JOBS.filter((j) => j.status === "ready" || j.status === "approved");
     const other = JOBS.filter((j) => !(j.status === "ready" || j.status === "approved"));
     const shown = applyFilters(rows, f);
     html += filterBar(rows, f);
+    html += `<div class="row" style="margin:0 2px 8px"><button class="btn btn-ghost" onclick="toggleHeld()">Skipped by safeguards...</button></div>`;
     html += `<div class="card row"><span class="small">Approve every ready role open to SA with fit at least</span><input id="ms" type="number" value="60" style="width:80px;min-height:40px"><button class="btn" onclick="approveAll()">Approve all</button><button class="btn btn-primary" onclick="runCmd('submit')">Submit approved now</button><span class="small muted">Applies to all of Review, not just the filter. Roles with a same-company warning are never bulk-approved.</span></div>`;
     html += `<p class="small muted" style="margin:4px 2px 8px">Showing ${Math.min(shown.length, SHOWN[TAB] || PAGE)} of ${shown.length} matching${shown.length !== rows.length ? ` (${rows.length} in Review)` : ""}.</p>`;
     html += shown.length ? pageOf(shown, "review") : empty(rows.length ? "No roles match these filters. <button class='btn' onclick='resetF()'>Clear filters</button>" : "Nothing waiting. The scheduled run fills this up, or start one from Runs.");
@@ -379,7 +390,7 @@ function renderRuns() {
   const cmds = STATE?.commands || [];
   const btn = (job, label, cls = "", title = "") => `<button class="btn ${cls}" title="${esc(title)}" onclick="runCmd('${job}')">${label}</button>`;
   frame(`<div class="card"><div class="row">${btn("all", "Find + prepare now", "btn-primary")}${btn("scan", "Find new roles")}${btn("prepare", "Prepare best roles")}${btn("submit", "Submit approved", "btn-green")}</div>
-   <div class="row" style="margin-top:8px">${btn("referrals", "Find referrals for Review", "", "People to ask for referrals, for roles in Review that have none")}${btn("replies", "Check employer replies", "", "Reads Gmail replies (read-only) and moves Notion to Interview / Rejected / Offered")}${btn("expire", "Clear stale roles", "", "Moves roles older than 3 weeks out of Review")}${btn("backfill", "Referral backfill (Notion)")}${btn("tiers", "Fill Notion Tier used")}${btn("sweep", "Apply platform rule to Review")}</div>
+   <div class="row" style="margin-top:8px">${btn("referrals", "Find referrals for Review", "", "People to ask for referrals, for roles in Review that have none")}${btn("replies", "Check employer replies", "", "Reads Gmail replies (read-only) and moves Notion to Interview / Rejected / Offered")}${btn("expire", "Clear stale roles", "", "Moves roles older than 3 weeks out of Review")}${btn("backfill", "Referral backfill (Notion)")}${btn("tiers", "Fill Notion Tier used")}${btn("sweep", "Best role per company", "", "Keeps the best-fit role per company and per recruiter in Review and skips the rest (Allow anyway brings one back)")}</div>
    <p class="small muted" style="margin:8px 0 0">Runs happen on your PC. It picks the command up within about 15 seconds while the dashboard is open there.</p></div>
    ${runs.map((r) => `<div class="card"><div class="row between"><b>${esc(r.job)} ${esc(r.arg || "")}</b><span class="badge ${/fail/.test(r.status) ? "b-bad" : r.status === "running" ? "b-warn" : "b-ok"}">${esc(r.status)}</span></div><div class="small muted">${esc((r.started || "").replace("T", " "))}</div>${r.tail ? `<details ${r.status === "running" ? "open" : ""}><summary>Log</summary><pre class="log">${esc(r.tail)}</pre></details>` : ""}</div>`).join("") || empty("No runs since the PC dashboard started.")}
    <div class="card"><b>Recent commands from here</b>${cmds.slice(0, 12).map((c) => `<div class="brow"><span>${esc(c.kind)} ${esc(c.payload?.action || c.payload?.job || "")}</span><span class="muted small">${esc(c.status)}${c.result && c.result.ok === false ? " - " + esc(c.result.error) : ""}</span></div>`).join("") || `<p class="small muted">None yet.</p>`}</div>`);
@@ -396,21 +407,22 @@ async function command(body, label) {
 async function act(id, action, note, override) {
   PENDING[id] = "Sending to your PC...";
   draw(true);
-  await command({ kind: "job_action", id, action, note, override }, { approve: "Approve", retry: "Retry", skip: "Skip", reopen: "Undo", done: "Marked submitted" }[action] || action);
+  await command({ kind: "job_action", id, action, note, override }, { approve: "Approve", retry: "Retry", skip: "Skip", reopen: "Undo", done: "Marked submitted", allow: "Allowed anyway" }[action] || action);
 }
 function retry(id) { const n = prompt("What should change? (e.g. 'lean on Shopify more', 'use the admin resume', 'shorter cover letter')"); if (n !== null) act(id, "retry", n); }
 async function sent(id) { await command({ kind: "contact_sent", id }, "Marked sent"); }
 async function followedUp(id) { await command({ kind: "followed_up", id }, "Marked followed up"); }
 async function approveAll() { await command({ kind: "approve_all", min_score: +$("#ms").value }, "Approve all"); }
 async function runCmd(job, arg) {
-  const labels = { all: "Find + prepare", scan: "Find", prepare: "Prepare", submit: "Submit approved", backfill: "Referral backfill", tiers: "Notion Tier used", sweep: "Platform rule", referrals: "Find referrals", replies: "Check replies", expire: "Clear stale roles", board: "Run board" };
+  const labels = { all: "Find + prepare", scan: "Find", prepare: "Prepare", submit: "Submit approved", backfill: "Referral backfill", tiers: "Notion Tier used", sweep: "Best role per company", referrals: "Find referrals", replies: "Check replies", expire: "Clear stale roles", board: "Run board" };
   await command({ kind: "run", job, arg: arg || null }, labels[job] || job);
   if (arg && job === "prepare") PENDING[arg] = "Preparing on your PC...";
 }
 function copyNote(id) { copyText(NOTES[id] || ""); }
 function copyText(t) { navigator.clipboard.writeText(t || "").then(() => toast("Copied"), () => toast("Copy failed - select the text instead")); }
 async function signOut() { await fetch("/api/login", { method: "DELETE" }); showLogin(); }
-function go(t) { TAB = t; SHOWN[t] = PAGE; window.scrollTo(0, 0); render(); }
+function toggleHeld() { HELD = !HELD; SHOWN[TAB] = PAGE; LOADED_FOR = null; window.scrollTo(0, 0); render(); }
+function go(t) { TAB = t; HELD = false; SHOWN[t] = PAGE; window.scrollTo(0, 0); render(); }
 
 async function loadState() {
   STATE = await api("/api/state");

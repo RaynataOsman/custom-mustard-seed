@@ -1,6 +1,6 @@
 const { rpc, send, guarded, body } = require("./_lib");
 
-const ACTIONS = ["approve", "retry", "skip", "reopen", "done"];
+const ACTIONS = ["approve", "retry", "skip", "reopen", "done", "allow"];
 const RUNS = ["scan", "prepare", "submit", "all", "backfill", "tiers", "retriage", "sweep", "referrals", "expire", "replies", "board"];
 
 module.exports = guarded(async (req, res) => {
