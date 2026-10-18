@@ -185,3 +185,8 @@ Tests: `tests/test_safeguards_v2.py`.
 - **Phone:** commands `edit_text` and `resume_text` go through the same queue as Approve (PC must be on). Resume text is not stored in Supabase; it is fetched on demand.
 - Code: `editor.py`, `app.py` (`/api/job/<id>/texts`, `/api/job/<id>/edit`), `cloud_sync.py` (`edit_text`, `resume_text`, `refresh_job`), `web/api/command.js`. Test: `tests/test_editor.py` (22 checks, restores everything).
 
+
+## 11. Bot-check handling on scanned boards (18 Oct 2026)
+- Make it in Germany (Radware) first shows a passive check, then can escalate to a 403 / 'Suspicious Activity Detected' pop-up / human check. render.py now waits like a person for passive checks (Cloudflare, Radware; usually about 4 s), and if a 403 / pop-up / captcha frame appears it leaves the page, stops that board straight away (no reload loop) and records health 'blocked'.
+- pipeline.pause_hours: a blocked board rests 24 h (72 h after three blocked runs in a row); a manual 'Run board' from Boards still tries once. The scanner never solves or dodges a human check.
+- Test: tests/test_block.py.

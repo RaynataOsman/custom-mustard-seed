@@ -256,6 +256,67 @@ def _scroll(page, times):
         page.wait_for_timeout(900)
 
 
+_PASSIVE = re.compile(r"just a moment|attention required|checking your browser|radware|^loading https?://", re.I)
+
+
+def _settle(page, tries=5, ms=4000):
+    """Passive bot checks (Cloudflare 'Just a moment', Radware 'Loading...') clear on their own in a few seconds
+    for a normal browser; wait for that like a person would. Stops as soon as the real page text is there."""
+    for _ in range(tries):
+        try:
+            t = page.title() or ""
+            n = len(page.inner_text("body") or "")
+        except Exception:
+            return
+        if not _PASSIVE.search(t) or n > 1500:
+            return
+        page.wait_for_timeout(ms)
+
+
+_BLOCK_TITLE = re.compile(r"radware|403 forbidden|access denied|request blocked|you have been blocked|error 1020|"
+                          r"are you a robot|human verification|verify you are human|robot check|too many requests", re.I)
+_BLOCK_BODY = re.compile(r"transaction id|access denied|403 forbidden|verify (that )?you are (a )?human|are you a robot|"
+                         r"unusual traffic|captcha|not a robot|automated (access|requests)|you have been blocked", re.I)
+
+
+# a human-check pop-up laid over an otherwise normal, long page (Make it in Germany: "Suspicious Activity Detected!")
+_BLOCK_OVERLAY = re.compile(r"suspicious activity detected|validated for suspicious|suspicious bot activity|"
+                            r"unusual activity from your|verify you are (a )?human", re.I)
+
+
+def blocked_page(page, resp=None):
+    """True when the site is showing a 403 / human-check page instead of its listings.
+    We never try to solve or dodge these: the caller stops the board and it rests for a day or more."""
+    try:
+        if resp is not None and resp.status in (403, 429):
+            return True
+    except Exception:
+        pass
+    try:
+        title = page.title() or ""
+    except Exception:
+        title = ""
+    if _BLOCK_TITLE.search(title):
+        return True
+    try:
+        full = page.inner_text("body") or ""
+    except Exception:
+        full = ""
+    if _BLOCK_OVERLAY.search(full):
+        return True
+    body = full[:3000].strip()
+    if len(body) < 1500:  # a real listing page is long; block / challenge pages are short
+        if _BLOCK_BODY.search(body):
+            return True
+        try:
+            if page.query_selector('iframe[src*="hcaptcha"], iframe[src*="recaptcha"][src*="bframe"], '
+                                   'iframe[src*="challenges.cloudflare"]'):
+                return True
+        except Exception:
+            pass
+    return False
+
+
 LAST = {}  # stats from the last harvest(): links on the pages, links matching the job pattern, sign-in wall
 
 
@@ -307,19 +368,22 @@ def harvest(board, cfg, log, title_ok, known=frozenset()):
                     continue
                 visited.add(u)
                 try:
-                    _goto(page, u, board)
+                    resp = _goto(page, u, board)
                     page.wait_for_timeout(board.get("wait_ms", 2500))
-                    for _ in range(5):  # let a Cloudflare / Indeed check clear, like a person waiting
-                        if not re.search(r"just a moment|attention required|checking your browser", page.title(), re.I):
-                            break
-                        page.wait_for_timeout(4000)
+                    _settle(page)  # let a Cloudflare / Radware / Indeed check clear, like a person waiting
                     _scroll(page, board.get("scrolls", 3))
                 except Exception as e:
                     log(f"  {board['name']}: could not open {u}: {e}")
                     continue
-                if re.search(r"just a moment|attention required|blocked|could not be satisfied", page.title(), re.I):
-                    log(f"  {board['name']}: blocked by bot protection on {u} - skipping this board for this run")
-                    raise RuntimeError("blocked by bot protection (Cloudflare/Indeed check)")
+                if blocked_page(page, resp) or re.search(r"just a moment|attention required|blocked|could not be satisfied",
+                                                         page.title(), re.I):
+                    try:
+                        page.goto("about:blank")  # leave the human-check page so it stops reloading
+                    except Exception:
+                        pass
+                    log(f"  {board['name']}: the site is showing a 403 / human-check page ({urllib.parse.urlparse(u).netloc}) - "
+                        "stopping this board now (not retrying, not solving it)")
+                    raise RuntimeError("blocked by bot protection (403 / human check)")
                 # some boards list JobPosting JSON-LD right on the index page
                 for d in _jsonld_jobs(page):
                     j = _from_jsonld(d)
@@ -391,8 +455,17 @@ def harvest(board, cfg, log, title_ok, known=frozenset()):
                     out.append(dict(j, url=href, apply_url=href))
                     continue
                 try:
-                    _goto(page, href, board)
+                    resp = _goto(page, href, board)
                     page.wait_for_timeout(1800)
+                    _settle(page, 3, 3000)
+                    if blocked_page(page, resp):
+                        try:
+                            page.goto("about:blank")
+                        except Exception:
+                            pass
+                        log(f"  {board['name']}: the site started showing a 403 / human-check page - "
+                            "stopping here, keeping what was read so far")
+                        break
                     lds = _jsonld_jobs(page)
                     if lds:
                         jj = _from_jsonld(lds[0])

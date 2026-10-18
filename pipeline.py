@@ -46,6 +46,19 @@ def board_health(kind, err, links, hits, fetched, matched, signin=False, signin_
     return "ok" if matched else "quiet"
 
 
+def pause_hours(runs, hours=24, hard=72):
+    """Hours left to leave a board alone after the site blocked us (403 / human check): 24 h after one blocked run,
+    72 h once the last three were all blocked. runs = this board's latest runs, newest first."""
+    if not runs or not str(runs[0].get("health") or "").startswith("blocked"):
+        return 0.0
+    wait = hard if len(runs) >= 3 and all(str(r.get("health") or "").startswith("blocked") for r in runs[:3]) else hours
+    try:
+        t = datetime.datetime.fromisoformat(str(runs[0]["started"]))
+    except Exception:
+        return 0.0
+    return max(0.0, wait - (datetime.datetime.now() - t).total_seconds() / 3600)
+
+
 def scan(only=None):
     cfg = load_config()
     c = db.conn()
@@ -69,6 +82,13 @@ def scan(only=None):
             continue
         if not only and b["kind"] != "email_alerts" and not feature("scan_boards", cfg):
             continue
+        if b["kind"] == "render" and not only:
+            left = pause_hours(db.rows(c, "SELECT health, started FROM board_runs WHERE board=? "
+                                          "ORDER BY started DESC LIMIT 3", (b["name"],)))
+            if left > 0:
+                log(f"[{b['name']}] resting: the site blocked the last run (403 / human check). Next try in about "
+                    f"{left:.0f} h. Run it by hand from Boards to try sooner.")
+                continue
         start, err, raw = time.time(), None, []
         log(f"[{b['name']}] scanning ({b['kind']})")
         try:
