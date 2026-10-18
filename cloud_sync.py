@@ -229,6 +229,13 @@ def _password(s):
 def run_command(cmd):
     import app
     kind, p = cmd["kind"], cmd.get("payload") or {}
+    if kind == "job_action" and p.get("action") == "resume_text":
+        import editor
+        t = editor.get_texts(str(p.get("id")))
+        return {"ok": True, "text": t.get("resume_text") or ""}
+    if kind == "job_action" and p.get("action") == "edit_text":
+        import editor
+        return editor.save(str(p.get("id")), p.get("what"), p.get("text") or "", bool(p.get("force")))
     if kind == "job_action":
         return app.job_action(str(p.get("id")), {"action": p.get("action"), "note": p.get("note"),
                                                   "override": bool(p.get("override")),

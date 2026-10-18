@@ -455,13 +455,13 @@ async function loadState() {
     if (CMD_WATCH[c.id] && c.status === "done") {
       const label = CMD_WATCH[c.id]; delete CMD_WATCH[c.id];
       const res = c.result || {};
-      if (c.kind === "resume_text" && res.ok !== false) {
+      if (c.payload?.action === "resume_text" && res.ok !== false) {
         DETAIL[c.payload.id] = Object.assign(DETAIL[c.payload.id] || {}, { resume_text: res.text || "(empty)" });
         const box = document.getElementById("d-" + c.payload.id);
         if (box && box.dataset.open === "1") box.innerHTML = detailHTML(JOBS.find((x) => x.id === c.payload.id) || { id: c.payload.id }, box.dataset.mode || "review");
         continue;
       }
-      if (res.ok === false && res.guard && c.kind === "edit_text") {
+      if (res.ok === false && res.guard && c.payload?.action === "edit_text") {
         if (confirm(`${res.error}\n\nSave anyway?`)) { sendEdit(c.payload.id, c.payload.what, c.payload.text, true); continue; }
         toast("Not saved");
       } else if (res.ok === false && res.edited && c.kind === "job_action") {
