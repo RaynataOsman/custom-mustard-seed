@@ -623,6 +623,146 @@
       "link_pattern": "/jobposting/"
     },
     {
+      "name": "EU-Startups jobs",
+      "kind": "render",
+      "enabled": true,
+      "track": "relocation",
+      "url": "https://www.eu-startups.com/startup-jobs/",
+      "link_pattern": "eu-startups\\.com/job/[a-z0-9-]+/?$",
+      "max_details": 12
+    },
+    {
+      "name": "GermanTechJobs",
+      "kind": "render",
+      "enabled": true,
+      "track": "relocation",
+      "url": "https://germantechjobs.de/",
+      "link_pattern": "germantechjobs\\.de/jobs/[^/?]+",
+      "url_strip": "\\?utm_.*$",
+      "max_details": 12
+    },
+    {
+      "name": "SwissDevJobs",
+      "kind": "render",
+      "enabled": true,
+      "track": "relocation",
+      "url": "https://swissdevjobs.ch/jobs",
+      "link_pattern": "swissdevjobs\\.ch/jobs/[A-Za-z0-9][^/?]+",
+      "max_details": 12
+    },
+    {
+      "name": "DevITJobs (Netherlands)",
+      "kind": "render",
+      "enabled": true,
+      "track": "relocation",
+      "url": "https://devitjobs.nl/",
+      "max_details": 12,
+      "note": "unverified link pattern - uses the default job-link match"
+    },
+    {
+      "name": "Techleap jobs (Netherlands)",
+      "kind": "render",
+      "enabled": true,
+      "track": "relocation",
+      "url": "https://jobs.techleap.nl/?lang=en#vacancies",
+      "link_pattern": "jobs\\.techleap\\.nl/companies/[^/]+/jobs/\\d+",
+      "max_details": 12,
+      "note": "unverified link pattern (Getro-style board)"
+    },
+    {
+      "name": "IrishJobs.ie",
+      "kind": "render",
+      "enabled": true,
+      "track": "relocation",
+      "q_slug": true,
+      "url": "https://www.irishjobs.ie/jobs/{q}",
+      "link_pattern": "irishjobs\\.ie/job/[^?]+",
+      "max_details": 12,
+      "note": "unverified link pattern"
+    },
+    {
+      "name": "Jobs Ireland (gov)",
+      "kind": "render",
+      "enabled": true,
+      "track": "relocation",
+      "url": "https://jobsireland.ie/en-US/browse-jobs",
+      "link_pattern": "jobsireland\\.ie/en-US/job-Details/\\d+",
+      "max_details": 12,
+      "note": "unverified link pattern; public vacancies are mostly non-tech"
+    },
+    {
+      "name": "Communitech Work In Tech (Canada)",
+      "kind": "render",
+      "enabled": true,
+      "track": "relocation",
+      "url": "https://www1.communitech.ca/jobs",
+      "link_pattern": "communitech\\.ca/companies/[^/]+/jobs/\\d+",
+      "max_details": 12,
+      "note": "unverified link pattern (Getro-style board)"
+    },
+    {
+      "name": "Tech West Canada",
+      "kind": "render",
+      "enabled": true,
+      "track": "relocation",
+      "url": "https://techwestcanada.ca/",
+      "max_details": 12,
+      "note": "unverified - site could not be read by the build machine; check the scan log"
+    },
+    {
+      "name": "Tech in Asia Jobs",
+      "kind": "render",
+      "enabled": true,
+      "track": "relocation",
+      "url": "https://www.techinasia.com/jobs",
+      "link_pattern": "techinasia\\.com/jobs/[0-9a-f-]{20,}",
+      "max_details": 12,
+      "note": "unverified link pattern - site blocked the build machine"
+    },
+    {
+      "name": "NodeFlair (Singapore)",
+      "kind": "render",
+      "enabled": true,
+      "track": "relocation",
+      "url": "https://nodeflair.com/jobs?countries%5B%5D=Singapore",
+      "link_pattern": "nodeflair\\.com/jobs/\\d+",
+      "max_details": 12,
+      "note": "unverified job-link pattern"
+    },
+    {
+      "name": "WORK180",
+      "kind": "render",
+      "enabled": false,
+      "why_off": "Job pages sit behind per-employer pages and an account; the platform is aimed at women - turn on only if it applies to you",
+      "url": "https://work180.com/search",
+      "max_details": 10
+    },
+    {
+      "name": "Berlin Startup Jobs",
+      "kind": "render",
+      "enabled": true,
+      "track": "relocation",
+      "urls": [
+        "https://berlinstartupjobs.com/engineering/",
+        "https://berlinstartupjobs.com/"
+      ],
+      "link_pattern": "berlinstartupjobs\\.com/(?!page/)[a-z-]+/(?!page/)[a-z0-9-]{12,}/?$",
+      "max_details": 12
+    },
+    {
+      "name": "Habr Career",
+      "kind": "render",
+      "enabled": true,
+      "track": "relocation",
+      "urls": [
+        "https://career.habr.com/vacancies?remote=true&type=all",
+        "https://career.habr.com/vacancies?remote=true&type=all&page=2"
+      ],
+      "link_pattern": "career\\.habr\\.com/vacancies/\\d+$",
+      "max_details": 12,
+      "note": "mostly Russian-language postings"
+    },
+    {
       "name": "Email job alerts (Gmail)",
       "kind": "email_alerts",
       "enabled": true,
