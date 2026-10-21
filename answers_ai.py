@@ -91,7 +91,7 @@ COLLECT_JS = """() => {
   }
   return out; }"""
 
-SYSTEM = """You fill in job application questions for one real person, Raynata Osman, from her resume, profile and standing answers.
+SYSTEM = """You fill in job application questions for one real person, {name}, from their resume, profile and standing answers.
 Rules:
 - Truth only. Never invent employers, numbers, tools, certifications, degrees, dates or experience that the resume does not state.
 - For select / radio fields, answer with EXACTLY one of the given options (copy its text). For checkboxes, answer with a list of option texts.
@@ -100,7 +100,7 @@ Rules:
   (passionate, leverage, spearheaded, results-driven, synergy, thrilled).
 - Personal data you are not given (ID numbers, references, URLs you don't have) -> "SKIP".
 - Salary/rate questions: use the rate given in the profile.
-- Location / "where will you work from": Cape Town, South Africa (remote).
+- Location / "where will you work from": {location} (remote).
 - Never copy the question's own hints or instructions into the answer ("if not, leave blank" etc.). If the honest answer is
   "no" or "not applicable", say that; if you do not know, answer SKIP.
 - Never answer Yes to a confirmation, declaration or eligibility statement unless the resume or standing answers clearly support it.
@@ -116,7 +116,12 @@ def draft(fields, job, cfg, resume_text, rate):
                        "years_experience_for_this_kind_of_role": (cfg.get("submit", {}).get("years_by_family") or {}).get(job.get("family") or ""),
                        "resume": resume_text[:7000],
                        "fields": [{k: f[k] for k in ("key", "kind", "label", "options", "required")} for f in fields]})
-    data, who = llm.chat_json(SYSTEM, user, max_tokens=2500, temperature=0.2)
+    pr = cfg.get("profile", {})
+    loc, ctry = (pr.get("location") or "").strip(), (pr.get("country") or "").strip()
+    where = loc if (ctry and ctry.lower() in loc.lower()) else ", ".join(x for x in (loc, ctry) if x)
+    where = where or "South Africa"
+    system = SYSTEM.replace("{name}", pr.get("name") or "the applicant").replace("{location}", where)
+    data, who = llm.chat_json(system, user, max_tokens=2500, temperature=0.2)
     return (data.get("answers") or {}), who
 
 
