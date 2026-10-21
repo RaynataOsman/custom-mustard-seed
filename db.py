@@ -72,7 +72,7 @@ def conn():
         c.execute("ALTER TABLE jobs ADD COLUMN allow_override INTEGER DEFAULT 0")  # "Allow anyway" pressed by the owner
     except sqlite3.OperationalError:
         pass
-    for col in ("resume_edited_at", "cover_edited_at"):  # set when you hand-edit the tailored copy
+    for col in ("resume_edited_at", "cover_edited_at", "apply_route", "prep_answers"):  # set when you hand-edit the tailored copy
         try:
             c.execute(f"ALTER TABLE jobs ADD COLUMN {col} TEXT")
         except sqlite3.OperationalError:

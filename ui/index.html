@@ -255,6 +255,9 @@ async function copy(t){await navigator.clipboard.writeText(t);toast("Copied")}
 async function copyOpen(t,u){await navigator.clipboard.writeText(t);window.open(u,"_blank");toast("Note copied - on LinkedIn press Connect > Add a note > paste")}
 async function sent(id){await api(`/api/contact/${id}/sent`,{});toast("Marked sent");render();refresh()}
 
+function qaHTML(j){let qa=[];try{qa=JSON.parse(j.prep_answers||"[]")}catch(e){}if(!qa.length)return "";return `<details class="mt-2" open><summary class="text-sm font-medium">Answers prepared for the application form (${qa.length})</summary>${qa.map(([q,a])=>`<div class="text-sm mt-2"><div class="muted">${esc(q)}</div><div style="white-space:pre-wrap">${esc(a)}</div></div>`).join("")}</details>`}
+const ROUTES={manual_linkedin:"LinkedIn Easy Apply",manual_platform:"Apply inside Wellfound",manual_captcha:"CAPTCHA",manual_account:"Account portal",manual_no_link:"Board hides employer link",manual_no_form:"No form found",manual_questions:"Questions for you",manual_ai_ban:"Bans AI - write it yourself"};
+function routeBadge(j){const r=j.apply_route;if(!r||r==="auto"||!ROUTES[r])return "";return `<span class="badge" style="background:#fef3c7;border-color:#f59e0b;color:#92400e" title="The engine prepares everything; you press apply">Prep manual apply - ${ROUTES[r]}</span>`}
 function lockHTML(j){const l=j.lock;if(!l||!l.message)return "";
  const can=["block","warn","skipped"].includes(l.level)&&["new","ready","retry","skipped"].includes(j.status);
  const btn=can?` <button class="btn btn-ghost" style="padding:2px 10px;min-height:0" title="Never hold or skip this role for company / recruiter reasons again" onclick="allowAnyway('${j.id}')">Allow anyway</button>`:"";
@@ -271,13 +274,13 @@ function jobCard(j,mode){const canEdit=(mode=="review"||mode=="needs")&&!!j.resu
    <div class="text-sm">${esc(j.company)} <span class="muted">- ${esc(j.location||"")}</span></div>
    <div class="flex flex-wrap gap-1 mt-2">${geoBadge(j)}<span class="badge">${esc(j.family)} - ${esc(j.tier)}</span><span class="badge">fit ${Math.round(j.score||0)}</span>
     <span class="badge">${esc(j.board)}</span>${j.posted_at?`<span class="badge">posted ${esc(j.posted_at)}</span>`:""}${j.salary?`<span class="badge">${esc(j.salary)}</span>`:""}
-    ${j.ai_ban?'<span class="badge bg-red-600 text-white border-red-600">Bans AI applications - write it yourself</span>':""}${j.is_platform?'<span class="badge" title="Agency / talent platform: one resume family per platform">platform</span>':""}</div>${lockHTML(j)}</div>
+    ${j.ai_ban?'<span class="badge bg-red-600 text-white border-red-600">Bans AI applications - write it yourself</span>':""}${routeBadge(j)}${j.is_platform?'<span class="badge" title="Agency / talent platform: one resume family per platform">platform</span>':""}</div>${lockHTML(j)}</div>
   <div class="flex flex-wrap gap-1 items-start">
    ${mode=="review"?`<button class="btn btn-green" onclick="act('${j.id}','approve')">Approve</button><button class="btn" onclick="retry('${j.id}')">Retry...</button><button class="btn btn-ghost" onclick="act('${j.id}','skip')">Skip</button>`:""}
    ${mode=="needs"?`<button class="btn btn-green" onclick="act('${j.id}','done')">I submitted it</button><button class="btn" onclick="act('${j.id}','approve')">Try again</button><button class="btn" onclick="retry('${j.id}')">Re-tailor...</button><button class="btn btn-ghost" onclick="act('${j.id}','skip')">Skip</button>`:""}
    ${mode=="found"?`<button class="btn" onclick="prep('${j.id}')">Prepare this one</button>`:""}
   </div></div>
- ${j.status_note?`<p class="text-sm mt-2 ${mode=="needs"?"text-amber-700":"muted"}">${esc(j.status_note)}</p>`:""}
+ ${j.status_note?`<p class="text-sm mt-2 ${mode=="needs"?"text-amber-700":"muted"}">${esc(j.status_note)}</p>`:""}${qaHTML(j)}
  <div class="flex flex-wrap gap-1 mt-3"><a class="btn" target="_blank" href="${esc(j.url)}">Posting</a>${j.apply_url&&j.apply_url!=j.url?`<a class="btn" target="_blank" href="${esc(j.apply_url)}">Apply page</a>`:""}
   ${fileLink(j.resume_pdf,"Resume PDF")}${j.resume_docx?`<button class="btn" onclick="openFolder('${encodeURIComponent(j.resume_docx)}')">Show DOCX</button>`:""}</div>
  <details class="mt-3" ontoggle="if(this.open)loadResume('${j.id}')"><summary class="text-sm font-medium">Resume (text)${j.resume_edited_at?" - edited by you":""}</summary><pre id="rt-${j.id}" class="text-sm mt-2 bg-zinc-50 p-3 rounded whitespace-pre-wrap">Loading...</pre>${canEdit?`<button class="btn mt-2" onclick="editText('${j.id}','resume')">Edit resume</button>`:""}</details>
@@ -414,7 +417,7 @@ async function renderView(version){const v=$("#view");
   v.innerHTML=`<div class="flex flex-wrap gap-2 mb-3"><button class="btn" onclick="run('scan')">Scan boards</button><button class="btn" onclick="run('prepare')">Prepare best new roles</button><button class="btn" onclick="run('submit')">Submit approved</button><button class="btn" onclick="run('backfill')">Backfill referrals for tracker rows</button><button class="btn" onclick="run('referrals')" title="Find people to ask for referrals, for roles in Review that have none">Find referrals for Review</button><button class="btn" onclick="run('replies')" title="Read employer replies in Gmail (read-only) and move Notion to Interview / Rejected / Offered">Check employer replies</button><button class="btn" onclick="run('expire')" title="Move roles older than 3 weeks out of Review">Clear stale roles</button><button class="btn" onclick="run('sweep')" title="Keep only the best-fit role per company and per recruiter among the roles in Review; the rest are skipped (press Allow anyway on any you want back)">Best role per company</button><button class="btn" onclick="run('retriage')" title="Re-sort every job already found using your latest role, time-zone and employer rules">Re-sort found jobs (retriage)</button></div>
   <div class="card p-3 mb-3 text-sm">${runs.map(r=>`<div class="flex justify-between py-1 border-b border-zinc-100"><span>${esc(r.job)} ${esc(r.arg||"")} - ${esc(r.started.replace("T"," "))}</span><span><span class="badge">${esc(r.status)}</span> <button class="btn btn-ghost" onclick="CURRUN='${r.id}';render()">log</button></span></div>`).join("")||"<span class='muted'>No runs this session.</span>"}</div>
   <pre id="log" class="card p-3 text-xs h-[420px] overflow-auto bg-zinc-900 text-zinc-100"></pre>`;if(CURRUN)tail(CURRUN,0,version)}
- else if(tab=="settings"){const values=await Promise.all(["features","presets","profile","keys","config","cover_example","safeguards","cloud"].map(k=>api("/api/"+k)));[FEAT,PRE,PROF]=values;const keys=values[3],cfg=values[4],cex=values[5],sg=values[6],cl=values[7];
+ else if(tab=="settings"){const values=await Promise.all(["features","presets","profile","keys","config","cover_example","safeguards","cloud","standing"].map(k=>api("/api/"+k)));[FEAT,PRE,PROF]=values;const keys=values[3],cfg=values[4],cex=values[5],sg=values[6],cl=values[7],sa=values[8];
   v.innerHTML=`<div class="grid md:grid-cols-2 gap-3">
   <div class="card p-4 text-sm"><h3 class="font-semibold mb-2">Health</h3>
    <div id="health-status" role="status" class="muted">Checking your connections… You can edit settings while this runs.</div>
@@ -438,6 +441,14 @@ async function renderView(version){const v=$("#view");
    <div class="py-1">Status: <b>${esc(cl.state)}</b>${cl.last_push?` - last sync ${esc(cl.last_push.replace("T"," "))}`:""}${cl.last_error?`<div class="text-red-700 text-xs mt-1">${esc(cl.last_error)}</div>`:""}</div>
    ${cl.web_url?`<div class="py-1">Link: <a class="underline" target="_blank" href="${esc(cl.web_url)}">${esc(cl.web_url)}</a></div>`:""}
    <p class="text-xs muted mt-1">${cl.has_password?"Your online password is CLOUD_PASSWORD in Keys - change it there any time.":"Set CLOUD_PASSWORD in Keys to choose your online password."}${cl.has_token?"":" CLOUD_TOKEN is missing."}</p></div>
+  <div class="card p-4 text-sm md:col-span-2"><h3 class="font-semibold mb-2">Applying for you</h3>
+   <label class="flex items-center gap-2 py-1"><input type="checkbox" id="sa_auto" ${sa.auto_submit?"checked":""}> Send approved roles on every scheduled run (approving on your phone is enough)</label>
+   <label class="flex items-center gap-2 py-1"><input type="checkbox" id="sa_ai" ${sa.ai_answers?"checked":""}> Answer screening questions with AI drafts from your resume (sent as written; anything it can't answer truthfully comes to Needs you)</label>
+   <label class="flex items-center gap-2 py-1"><input type="checkbox" id="sa_acc" ${sa.create_accounts?"checked":""}> Create candidate accounts on job portals with my email, read the code from Gmail, and email me the login</label>
+   <h4 class="font-medium mt-3">Standing answers (used on every form)</h4>
+   <div class="grid md:grid-cols-3 gap-2 mt-1">${sa.fields.map(f=>`<label><span class="text-xs muted">${esc(f.label)}</span><input data-sa="${f.key}" value="${esc(f.value)}" class="w-full"></label>`).join("")}</div>
+   <p class="text-xs muted mt-1">Use "A|B" to give dropdowns a fallback (e.g. Prefer not to say|Decline). Leave blank to let the form question go to Needs you.</p>
+   <button class="btn btn-primary mt-2" onclick="saveStanding()">Save answers</button></div>
   <div class="card p-4 text-sm md:col-span-2"><h3 class="font-semibold mb-2">Safeguards (one company, one version of you)</h3>
    <label class="flex items-center gap-2 py-1"><input type="checkbox" id="sg_on" ${sg.enabled?"checked":""}> Check every role against what you already sent to that company</label>
    <div class="flex flex-wrap items-center gap-3 py-1"><span>Look back</span><input id="sg_days" type="number" min="7" max="365" value="${esc(sg.lookback_days)}" class="w-20"><span>days. When a company (or recruiter) already has an application from you, or a better-fit role there is waiting:</span>
@@ -477,6 +488,8 @@ async function upMaster(){const f=$("#up_file").files[0];if(!f){toast("Choose a 
  const r=await api("/api/master/upload",{family:$("#up_f").value,tier:$("#up_t").value,data_b64:btoa(bin)});toast(r.ok?"Saved as "+r.saved:r.error);render()}
 async function approveAll(){const r=await api("/api/approve_all",{min_score:+$("#ms").value});toast(`Approved ${r.approved}`+(r.held?` - ${r.held} held back with a same-company warning (approve those one by one)`:""));render();refresh()}
 async function saveCloud(){await api("/api/cloud",{enabled:$("#cl_on").checked});toast("Saved");setTimeout(render,1500)}
+async function saveStanding(){const values={};document.querySelectorAll("[data-sa]").forEach(e=>values[e.dataset.sa]=e.value);
+ await api("/api/standing",{values,auto_submit:$("#sa_auto").checked,ai_answers:$("#sa_ai").checked,create_accounts:$("#sa_acc").checked});toast("Saved")}
 async function saveSafe(){const b={enabled:$("#sg_on").checked,platform_rule:$("#sg_plat").checked,referral_dedup:$("#sg_ref").checked,recruiter_check:$("#sg_rec").checked,company_mode:document.querySelector("input[name=sg_mode]:checked").value,lookback_days:$("#sg_days").value,platforms:$("#sg_list").value.split(/[\n,]+/).map(x=>x.trim()).filter(Boolean)};await api("/api/safeguards",b);toast("Saved")}
 async function tail(id,off,version){if(tab!="run"||CURRUN!=id||version!==renderVersion)return;const r=await api(`/api/run/${id}/log?offset=${off}`);const l=$("#log");if(!l||tab!=="run"||CURRUN!==id||version!==renderVersion)return;if(off==0)l.textContent="";l.textContent+=r.text;l.scrollTop=l.scrollHeight;
  if(r.status=="running")setTimeout(()=>tail(id,r.offset,version),1500);else{refresh()}}

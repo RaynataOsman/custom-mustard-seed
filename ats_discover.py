@@ -29,7 +29,8 @@ def slugs(name):
     words = re.findall(r"[a-z0-9]+", base.lower())
     if not words:
         return []
-    out = ["".join(words), "-".join(words)]
+    full = re.findall(r"[a-z0-9]+", re.sub(r"\(.*?\)", "", name).lower())
+    out = ["".join(words), "-".join(words)] + (["".join(full), "-".join(full)] if full and full != words else [])
     out += [s + "hq" for s in out[:1]] + [s + "careers" for s in out[:1]]
     return list(dict.fromkeys(out))
 
@@ -68,8 +69,8 @@ KINDS = ["greenhouse", "lever", "ashby", "workable", "smartrecruiters", "recruit
 
 def resolve(name, log=print, force=False):
     cache = _load()
-    if name in cache and not force:
-        return cache[name]
+    if name in cache and not force and (cache[name].get("kind") or cache[name].get("v") == 2):
+        return cache[name]  # "not found" results from before the wider name variants are re-checked once
     found = None
     for slug in slugs(name):
         for kind in KINDS:
@@ -80,7 +81,7 @@ def resolve(name, log=print, force=False):
         if found:
             break
         time.sleep(0.3)
-    cache[name] = found or {"kind": None, "checked": time.strftime("%Y-%m-%d")}
+    cache[name] = found or {"kind": None, "checked": time.strftime("%Y-%m-%d"), "v": 2}
     _save(cache)
     log(f"  {name}: " + (f"{found['kind']}/{found['slug']} ({found['jobs']} open)" if found else "no public job feed found"))
     return cache[name]

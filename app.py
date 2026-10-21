@@ -16,7 +16,7 @@ KEY_NAMES = ["GEMINI_API_KEY", "GROQ_API_KEY", "CEREBRAS_API_KEY", "OPENROUTER_A
 
 
 RUN_JOBS = {"scan", "board", "prepare", "submit", "backfill", "retriage", "sweep", "tiers", "expire", "replies", "referrals",
-            "all", "discover", "dryfill", "login"}
+            "all", "discover", "dryfill", "login", "fixlinks"}
 
 
 def start_run(job, arg=None):
@@ -337,6 +337,32 @@ def cloud_set(b):
     return {"ok": True}
 
 
+def standing_get():
+    import answers_ai
+    cfg = load_config()
+    vals = answers_ai.standing(cfg)
+    sub = cfg.get("submit", {})
+    return {"fields": [{"key": k, "label": lab, "value": vals.get(k) or ""} for k, lab, _, _ in answers_ai.STANDING],
+            "auto_submit": bool(sub.get("auto_submit")), "ai_answers": sub.get("ai_answers", True) is not False,
+            "create_accounts": bool(sub.get("create_accounts"))}
+
+
+def standing_set(b):
+    import answers_ai
+    cfg = load_config()
+    sub = cfg.setdefault("submit", {})
+    st = sub.setdefault("standing", {})
+    keys = {k for k, _, _, _ in answers_ai.STANDING}
+    for k, v in (b.get("values") or {}).items():
+        if k in keys:
+            st[k] = str(v).strip()[:300]
+    for k in ("auto_submit", "ai_answers", "create_accounts"):
+        if k in b:
+            sub[k] = bool(b[k])
+    save_config_text(json.dumps(cfg, indent=2))
+    return {"ok": True}
+
+
 def safeguards_get():
     import safeguards
     s = safeguards.settings()
@@ -599,6 +625,8 @@ class H(BaseHTTPRequestHandler):
                 return self._send(200, features_get())
             if u.path == "/api/safeguards":
                 return self._send(200, safeguards_get())
+            if u.path == "/api/standing":
+                return self._send(200, standing_get())
             if u.path == "/api/cloud":
                 return self._send(200, cloud_get())
             if u.path == "/api/profile":
@@ -667,6 +695,8 @@ class H(BaseHTTPRequestHandler):
                 return self._send(200, features_set(b))
             if u.path == "/api/safeguards":
                 return self._send(200, safeguards_set(b))
+            if u.path == "/api/standing":
+                return self._send(200, standing_set(b))
             if u.path == "/api/cloud":
                 return self._send(200, cloud_set(b))
             if u.path == "/api/cover_example":

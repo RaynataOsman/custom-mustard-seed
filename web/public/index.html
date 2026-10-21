@@ -215,6 +215,9 @@ function geoBadge(j) {
   return `<span class="badge b-warn">Location unclear</span>`;
 }
 
+function qaHTML(j){let qa=[];try{qa=JSON.parse(j.prep_answers||"[]")}catch(e){}if(!qa.length)return "";return `<details class="mt-2" open><summary class="text-sm font-medium">Answers prepared for the application form (${qa.length})</summary>${qa.map(([q,a])=>`<div class="text-sm mt-2"><div class="muted">${esc(q)}</div><div style="white-space:pre-wrap">${esc(a)}</div></div>`).join("")}</details>`}
+const ROUTES={manual_linkedin:"LinkedIn Easy Apply",manual_platform:"Apply inside Wellfound",manual_captcha:"CAPTCHA",manual_account:"Account portal",manual_no_link:"Board hides employer link",manual_no_form:"No form found",manual_questions:"Questions for you",manual_ai_ban:"Bans AI - write it yourself"};
+function routeBadge(j){const r=j.apply_route;if(!r||r==="auto"||!ROUTES[r])return "";return `<span class="badge" style="background:#fef3c7;border-color:#f59e0b;color:#92400e" title="The engine prepares everything; you press apply">Prep manual apply - ${ROUTES[r]}</span>`}
 function lockHTML(j) {
   const l = j.lock; if (!l || !l.message) return "";
   const can = ["block", "warn", "skipped"].includes(l.level) && ["new", "ready", "retry", "skipped"].includes(j.status);
@@ -279,10 +282,10 @@ function jobCard(j, mode) {
   return `<article class="card ${pend ? "pending" : ""}">
   <div class="row between" style="align-items:flex-start"><div style="min-width:0;flex:1 1 260px"><div class="title">${esc(j.title)}</div>
    <div class="small">${esc(j.company)} <span class="muted">- ${esc(j.location || "")}${posted ? " - " + posted : ""}</span></div>
-   <div class="row" style="margin-top:6px">${geoBadge(j)}<span class="badge" title="Resume version">${esc(j.version)}</span><span class="badge">fit ${Math.round(j.score || 0)}</span><span class="badge">${esc(j.board)}</span>${j.salary ? `<span class="badge">${esc(j.salary)}</span>` : ""}${j.employment_type ? `<span class="badge">${esc(j.employment_type)}</span>` : ""}${j.is_platform ? '<span class="badge" title="One resume family per platform">platform</span>' : ""}${nc ? `<span class="badge">${nc} referral${nc > 1 ? "s" : ""}</span>` : ""}${j.ai_ban ? '<span class="badge b-bad">Bans AI applications - write it yourself</span>' : ""}${j.in_notion ? '<span class="badge">in Notion</span>' : ""}</div>
+   <div class="row" style="margin-top:6px">${geoBadge(j)}<span class="badge" title="Resume version">${esc(j.version)}</span><span class="badge">fit ${Math.round(j.score || 0)}</span><span class="badge">${esc(j.board)}</span>${j.salary ? `<span class="badge">${esc(j.salary)}</span>` : ""}${j.employment_type ? `<span class="badge">${esc(j.employment_type)}</span>` : ""}${j.is_platform ? '<span class="badge" title="One resume family per platform">platform</span>' : ""}${nc ? `<span class="badge">${nc} referral${nc > 1 ? "s" : ""}</span>` : ""}${j.ai_ban ? '<span class="badge b-bad">Bans AI applications - write it yourself</span>' : ""}${j.in_notion ? '<span class="badge">in Notion</span>' : ""}${routeBadge(j)}</div>
    ${lockHTML(j)}</div>
    <div class="row">${pend ? `<span class="small muted">${esc(pend)}</span>` : actions}</div></div>
-  ${j.status_note ? `<p class="small ${mode === "needs" ? "" : "muted"}" style="margin:8px 0 0">${esc(j.status_note)}</p>` : ""}
+  ${j.status_note ? `<p class="small ${mode === "needs" ? "" : "muted"}" style="margin:8px 0 0">${esc(j.status_note)}</p>` : ""}${qaHTML(j)}
   ${j.fit_line && j.fit_line !== j.status_note ? `<p class="small muted" style="margin:8px 0 0">${esc(j.fit_line)}</p>` : ""}
   <div class="row" style="margin-top:10px"><button class="btn" id="tb-${esc(j.id)}" onclick="openJob('${j.id}','${mode}')">Open details</button><a class="btn" target="_blank" rel="noopener" href="${esc(j.url)}">Posting</a>${j.apply_url && j.apply_url !== j.url ? `<a class="btn" target="_blank" rel="noopener" href="${esc(j.apply_url)}">Apply page</a>` : ""}
    ${files.resume ? `<a class="btn" target="_blank" href="/api/file?job=${encodeURIComponent(j.id)}&kind=resume">Resume PDF</a>` : ""}${files.cover ? `<a class="btn" target="_blank" href="/api/file?job=${encodeURIComponent(j.id)}&kind=cover">Cover letter PDF</a>` : ""}</div>

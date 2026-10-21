@@ -486,14 +486,11 @@ def harvest(board, cfg, log, title_ok, known=frozenset()):
                         m = re.search(r"(?im)^\s*(?:location|region|candidate location)\s*[:\-]\s*(.+)$", body)
                         if m:
                             jj["location"] = m.group(1).strip()[:120]
-                    apply = None
-                    for sel in ['a:has-text("Apply")', 'a:has-text("apply")']:
-                        el = page.query_selector(sel)
-                        if el:
-                            apply = el.get_attribute("href")
-                            if apply and apply.startswith("http"):
-                                break
-                            apply = None
+                    # the employer's own apply link - checked against company + title, so a "similar jobs"
+                    # box can never hand us another employer's link (see applylinks.py)
+                    import applylinks
+                    co = jj.get("company") or _company_guess(dict(jj, url=href, title=jj.get("title") or ""), board)
+                    apply = applylinks.pick_apply(page, co, jj.get("title") or "", "")
                     jj.update(url=href, apply_url=apply or href)
                     out.append(jj)
                 except Exception as e:

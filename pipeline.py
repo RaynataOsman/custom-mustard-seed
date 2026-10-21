@@ -353,7 +353,42 @@ def notion_tiers():
     log(f"Tier used filled on {n} of {len(rows)} tracker row(s)")
 
 
-def submit_approved():
+def fix_links(quiet=False):
+    """Re-check every saved apply link against its company + title. Links that belong to another job
+    (taken from a 'similar jobs' box) are reset to the board page; submit then finds the real one."""
+    import applylinks, urllib.parse
+    c = db.conn()
+    bad = 0
+    for j in db.rows(c, "SELECT id, company, title, url, apply_url, status FROM jobs WHERE apply_url IS NOT NULL "
+                        "AND apply_url <> url AND status IN ('new','ready','approved','retry','needs_you','preparing','failed')"):
+        board_host = urllib.parse.urlparse(j["url"] or "").netloc
+        if not applylinks.link_fits(j["apply_url"], j["company"], j["title"], board_host):
+            db.set_job(c, j["id"], apply_url=j["url"])
+            db.event(c, j["id"], "apply_link_reset", f"was {j['apply_url'][:200]} - belongs to another job")
+            bad += 1
+            if not quiet:
+                log(f"  reset wrong apply link: {j['company']} - {j['title']} (was {j['apply_url'][:90]})")
+    # platforms where you apply inside the site: label them so Review shows it before you approve
+    for j in db.rows(c, "SELECT id FROM jobs WHERE (url LIKE '%wellfound.com%' OR apply_url LIKE '%wellfound.com%') "
+                        "AND COALESCE(apply_route,'') = '' AND status IN ('new','ready','approved','retry')"):
+        db.set_job(c, j["id"], apply_route="manual_platform")
+    # links reset earlier that pass the current rules (e.g. employer name unknown but the link spells the title)
+    back = 0
+    for e in db.rows(c, "SELECT e.job_id, e.detail, j.company, j.title, j.url FROM events e JOIN jobs j ON j.id = e.job_id "
+                        "WHERE e.event = 'apply_link_reset' AND j.apply_url = j.url"):
+        old = re.sub(r"^was (\S+).*$", r"\1", e["detail"] or "")
+        if old.startswith("http") and applylinks.link_fits(old, e["company"], e["title"], urllib.parse.urlparse(e["url"] or "").netloc):
+            db.set_job(c, e["job_id"], apply_url=old)
+            db.event(c, e["job_id"], "apply_link_restored", old[:200])
+            back += 1
+    c.commit()
+    log(f"apply links checked: {bad} wrong link(s) reset, {back} restored")
+    return bad
+
+
+def submit_approved(auto=False):
+    """auto=True on the scheduled runs: send every approved role, never wait for you - anything that
+    hits a wall lands in Needs you with a 'Prep manual apply' note."""
     import submit, notion_sync
     if not feature("auto_fill"):
         log("auto-fill is switched off in Settings > Features - apply with the downloaded files, then press 'I submitted it'")
@@ -363,6 +398,8 @@ def submit_approved():
     if not jobs:
         log("nothing approved to submit")
         return
+    fix_links(quiet=True)
+    jobs = db.rows(c, "SELECT * FROM jobs WHERE status='approved' ORDER BY score DESC")
     cfg = load_config()
     clear = []
     for j in jobs:
@@ -381,8 +418,10 @@ def submit_approved():
         clear.append(j)
     c.commit()
     jobs = clear
-    for job_id, status, note in submit.run(jobs, log=log):
-        fields = {"status": status, "status_note": note}
+    for job_id, status, note, route, qa in submit.run(jobs, log=log, auto=auto):
+        fields = {"status": status, "status_note": note, "apply_route": route}
+        if qa:
+            fields["prep_answers"] = json.dumps(qa)
         if status == "submitted":
             fields["applied_at"] = now_iso()
         db.set_job(c, job_id, **fields)
@@ -500,14 +539,20 @@ if __name__ == "__main__":
         scan(only=" ".join(sys.argv[2:]))
     elif cmd == "prepare":
         prepare(ids=sys.argv[2:] or None)
+    elif cmd == "submit_auto":
+        submit_approved(auto=True)
     elif cmd == "submit":
         submit_approved()
+    elif cmd == "fixlinks":
+        fix_links()
     elif cmd == "dryfill":
         import submit
         c = db.conn()
         jobs = db.rows(c, f"SELECT * FROM jobs WHERE id IN ({','.join('?' * len(sys.argv[2:]))})", sys.argv[2:])
-        for jid, st, note in submit.run(jobs, log=log, dry=True):
-            log(f"DRY {jid}: {st} - {note}")
+        for jid, st, note, route, qa in submit.run(jobs, log=log, dry=True):
+            log(f"DRY {jid}: {st} [{route}] - {note}")
+            for q, a in (qa or [])[:12]:
+                log(f"      Q: {q[:90]}\n      A: {a[:300]}")
     elif cmd == "discover":
         import ats_discover
         for n in (sys.argv[2:] or load_config().get("companies_to_watch", [])):
@@ -539,6 +584,11 @@ if __name__ == "__main__":
         scan()
         lifecycle.expire_stale(log)
         prepare()
+        if load_config()["submit"].get("auto_submit"):
+            try:
+                submit_approved(auto=True)
+            except Exception as e:
+                log(f"auto-submit stopped: {type(e).__name__}: {e}")
         if feature("email_alerts", load_config()):
             try:
                 lifecycle.watch_replies(log)

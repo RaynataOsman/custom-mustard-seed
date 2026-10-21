@@ -7,7 +7,7 @@ drafts the connection note, you tap "Copy + open profile" and press Send
 yourself. LinkedIn restricts accounts that automate messages, so sending stays
 with you on purpose.
 """
-import html, re, time, urllib.parse
+import html, random, re, time, urllib.parse
 from util import get, load_config, ascii_clean
 
 KIND_RE = [
@@ -100,29 +100,70 @@ _JS_COLLECT = """() => {
   return out; }"""
 
 
-def _browser_search(q):
-    """Search like a person would, in a real Chrome window: DuckDuckGo, then Yahoo."""
+_CAPTCHA_PAGE = re.compile(r"unusual traffic|are you a robot|not a robot|captcha|verify you are human|"
+                           r"anomaly|bots use duckduckgo|select all (images|squares)|challenge", re.I)
+_COOL = {}           # engine -> time it may be used again
+_LAST = {"t": 0.0}   # last browser search
+
+
+def _gap(cfg):
+    lo, hi = (cfg.get("referrals", {}).get("browser_gap_s") or [25, 50])
+    wait = _LAST["t"] + random.uniform(lo, hi) - time.time()
+    if wait > 0:
+        time.sleep(wait)
+    _LAST["t"] = time.time()
+
+
+def _browser_search(q, cfg=None):
+    """Search like a person in a real Chrome window: DuckDuckGo, then Yahoo. Spaced 25-50 s apart.
+    A CAPTCHA page rests that engine (3, 6, 12... up to 30 min) instead of skipping the query; the
+    query is tried on the other engine, and waits for a rested engine when both are cooling down."""
+    cfg = cfg or load_config()
     page = _browser_page()
-    out = []
-    for url in ("https://duckduckgo.com/?" + urllib.parse.urlencode({"q": q, "ia": "web"}),
-                "https://search.yahoo.com/search?" + urllib.parse.urlencode({"p": q.replace('"', "")})):
-        try:
-            page.goto(url, wait_until="domcontentloaded", timeout=30000)
-            page.wait_for_timeout(3000)
-            out = page.evaluate(_JS_COLLECT)
-        except Exception:
-            out = []
-        if out:
+    engines = [("duckduckgo", "https://duckduckgo.com/?" + urllib.parse.urlencode({"q": q, "ia": "web"})),
+               ("yahoo", "https://search.yahoo.com/search?" + urllib.parse.urlencode({"p": q.replace('"', "")}))]
+    for attempt in range(2):
+        for name, url in engines:
+            c = _COOL.get(name)
+            if c and time.time() < c["until"]:
+                continue
+            _gap(cfg)
+            try:
+                page.goto(url, wait_until="domcontentloaded", timeout=30000)
+                page.wait_for_timeout(random.randint(2500, 4500))
+                txt = (page.title() + " " + page.inner_text("body")[:1500])
+            except Exception:
+                continue
+            if _CAPTCHA_PAGE.search(txt) or re.search(r"/sorry/|captcha", page.url, re.I):
+                n = (c or {}).get("n", 0) + 1
+                rest = min(1800, 180 * 2 ** (n - 1))
+                _COOL[name] = {"until": time.time() + rest, "n": n}
+                print(f"    {name} showed a CAPTCHA - resting it for {rest // 60} min and trying another way")
+                continue
+            if c:
+                _COOL[name]["n"] = max(0, c["n"] - 1)
+            try:
+                out = page.evaluate(_JS_COLLECT)
+            except Exception:
+                out = []
+            return out
+        # every engine is cooling down: wait for the first one to be ready (bounded), then try again
+        soonest = min((c["until"] for c in _COOL.values()), default=time.time())
+        wait = soonest - time.time()
+        if attempt == 0 and 0 < wait <= 900:
+            print(f"    all search engines are resting - waiting {int(wait // 60) + 1} min")
+            time.sleep(wait + 5)
+        else:
             break
-    time.sleep(2)
-    return out
+    return []
 
 
 def search(q, cfg):
     res = _searx(q, cfg)
     if res:
+        time.sleep(random.uniform(2, 5))   # gentle on SearXNG's upstream engines too
         return res
-    return _browser_search(q)
+    return _browser_search(q, cfg)
 
 
 def _company_core(company):

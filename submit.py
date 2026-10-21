@@ -31,7 +31,12 @@ ATS = {
     "rippling": re.compile(r"ats\.rippling\.com", re.I),
 }
 BOARD_HOSTS = re.compile(r"himalayas\.app|weworkremotely\.com|remoteok\.com|remotive\.com|jobicy\.com|"
-                         r"workingnomads\.com|euremotejobs\.com|linkedin\.com/jobs|remoterocketship\.com|jobgether\.com", re.I)
+                         r"workingnomads\.com|euremotejobs\.com|linkedin\.com/jobs|remoterocketship\.com|jobgether\.com|"
+                         r"remotiko\.com|dynamitejobs\.com|remote\.co\b|virtualstaffsa\.com|remotecareer\.africa|remote4africa\.com|"
+                         r"nodesk\.co|builtin\.com|jobs\.workable\.com|arbeitnow\.com|relocate\.me|jaabz\.com|landing\.jobs|"
+                         r"aitraining\.jobs|hirezar\.com|flexa\.careers|remoters\.net|nocodejobs|vacancymail|zimbajob", re.I)
+# sites where you apply inside the platform with your own profile - prepared for a manual apply
+MANUAL_HOSTS = {"wellfound.com": "Wellfound (apply inside Wellfound with your profile)"}
 CAPTCHA = 'iframe[src*="recaptcha"], iframe[src*="hcaptcha"], iframe[src*="challenges.cloudflare"], div.g-recaptcha, [data-sitekey]'
 SUCCESS = re.compile(r"(thank you for (applying|your application)|application (has been )?(received|submitted)|"
                      r"we('ve| have) received your application|successfully (applied|submitted))", re.I)
@@ -49,9 +54,11 @@ def ats_of(url):
 def _answers(job, cfg):
     p = cfg["profile"]
     rate = _rate_for(job, cfg, "") or ""
-    yrs = cfg["submit"].get("years_by_tier", {}).get(job.get("tier") or "HM", "3")
-    bank = [(pat, ans.replace("{years}", yrs).replace("{rate}", rate))
-            for pat, ans in cfg["submit"].get("answers", [])]
+    yrs = str((cfg["submit"].get("years_by_family", {}) or {}).get(job.get("family") or "")
+              or cfg["submit"].get("years_by_tier", {}).get(job.get("tier") or "HM", "3"))
+    import answers_ai
+    bank = answers_ai.bank(cfg) + [(pat, ans.replace("{years}", yrs).replace("{rate}", rate))
+                                   for pat, ans in cfg["submit"].get("answers", [])]
     # "A|B|C" = try these options in order on dropdowns/radios; text boxes get the first one
     return bank + [
         (r"first[\s_-]*name|given name|fname", p["first_name"]),
@@ -232,8 +239,215 @@ def _decline_cookies(page):
             pass
 
 
-def fill_and_submit(page, job, cfg, approved=True, log=print):
-    """Returns (status, note). status: submitted | needs_you | failed"""
+def _form_ready(page):
+    """An application form is on screen (file upload, or several real inputs, or a sign-in/up gate)."""
+    try:
+        if page.query_selector('input[type="file"]'):
+            return True
+        n = 0
+        for e in page.query_selector_all('input:not([type=hidden]):not([type=checkbox]):not([type=radio]):not([type=submit]):'
+                                         'not([type=button]):not([type=search]), textarea'):
+            if e.is_visible():
+                n += 1
+        return n >= 3
+    except Exception:
+        return False
+
+
+def _open(page, url):
+    page.goto(url, wait_until="domcontentloaded", timeout=60000)
+    page.wait_for_timeout(2500)
+    _decline_cookies(page)
+    return page
+
+
+def _landed_right(page, company, title):
+    """After following a redirect/tracking link: is this page about THIS job at THIS company?"""
+    import applylinks
+    if applylinks.link_fits(page.url, company, title):
+        return True
+    try:
+        txt = (page.title() + " " + page.inner_text("body")[:5000]).lower()
+    except Exception:
+        return False
+    ct = applylinks.company_tokens(company)
+    tt = applylinks.title_tokens(title)
+    has_co = any(t in txt.replace(" ", "") for t in ct) if ct else False
+    has_title = bool(tt) and sum(1 for t in tt if t in txt) >= max(1, round(len(tt) * 0.6))
+    return has_title and (has_co or not ct)
+
+
+_CLICKED = set()
+
+
+def _press_apply(page, company, title, log):
+    """Click/follow this page's own Apply control (never one from a 'similar jobs' box). Returns the page to use.
+    Sets page._ms_clicked when it pressed something (menus like Workday's 'Apply Manually' need a second press)."""
+    import applylinks
+    for c in applylinks.apply_candidates(page):
+        if c["foreign"] or not c["visible"] or not applylinks.APPLY_TEXT.match(c["text"]):
+            continue
+        if re.match(r"^\s*easy apply", c["text"], re.I):
+            return page  # LinkedIn Easy Apply - handled by the caller
+        href = c["href"]
+        if href.startswith("http") and not href.startswith("javascript") and href.split("#")[0] != page.url.split("#")[0]:
+            back = page.url
+            page = _open(page, href)
+            if _landed_right(page, company, title):
+                return page
+            log(f"    that Apply link led to another job ({page.url[:80]}) - going back")
+            page = _open(page, back)
+            continue
+        try:
+            el = page.locator(f'[data-ms-apply="{c["idx"]}"]').first
+            el.scroll_into_view_if_needed(timeout=3000)
+            try:
+                with page.context.expect_page(timeout=5000) as np_:
+                    el.click(timeout=5000)
+                p2 = np_.value
+                p2.wait_for_load_state("domcontentloaded")
+                p2.wait_for_timeout(2500)
+                return p2
+            except Exception:
+                for _ in range(4):  # same-page forms / modals take a moment to render
+                    page.wait_for_timeout(1500)
+                    if _form_ready(page):
+                        break
+                _CLICKED.add(id(page))
+                return page
+        except Exception:
+            continue
+    return page
+
+
+def _reach_form(page, job, cfg, log):
+    """Board link -> employer -> application form. Returns (page, route, note).
+    route: 'form' (ready to fill) or a manual_* reason."""
+    import applylinks, accounts
+    url = job.get("apply_url") or job.get("url")
+    company, title = job.get("company") or "", job.get("title") or ""
+    host = urllib.parse.urlparse(url).netloc.lower().replace("www.", "")
+    for h, why in MANUAL_HOSTS.items():
+        if h in host:
+            return page, "manual_platform", why
+    page = _open(page, url)
+    # LinkedIn: Easy Apply stays with you; "Apply" on the company site is followed
+    if "linkedin.com" in page.url:
+        # read ONLY this role's own apply button (the 'similar jobs' list shows Easy Apply badges too)
+        main = None
+        for sel in ["button.jobs-apply-button", ".jobs-apply-button--top-card button", ".jobs-s-apply button",
+                    "a.apply-button", "button.apply-button", "[data-tracking-control-name*='apply'] ", "button.sign-up-modal__outlet"]:
+            for e in page.query_selector_all(sel):
+                try:
+                    if e.is_visible():
+                        main = e
+                        break
+                except Exception:
+                    pass
+            if main:
+                break
+        label = (main.inner_text() if main else "") or ""
+        if re.search(r"\beasy apply\b", label, re.I):
+            return page, "manual_linkedin", "LinkedIn Easy Apply (apply inside LinkedIn)"
+        try:
+            if re.search(r"no longer accepting applications", page.inner_text("body")[:6000], re.I):
+                return page, "closed", "LinkedIn says this role no longer accepts applications"
+        except Exception:
+            pass
+    # job boards (up to 3 hops): the board's own apply link checked against company + title,
+    # else press its Apply button, else look the job up in the company's hiring system
+    for _ in range(3):
+        if not BOARD_HOSTS.search(page.url):
+            break
+        board_host = urllib.parse.urlparse(page.url).netloc
+        link = applylinks.pick_apply(page, company, title, "")
+        if link and link.split("#")[0] != page.url.split("#")[0]:
+            page = _open(page, link)
+            continue
+        before = page.url
+        page = _press_apply(page, company, title, log)
+        if page.url != before:
+            continue
+        found = applylinks.employer_lookup(company, title, log)
+        if found:
+            log(f"    found the employer's own posting: {found[:90]}")
+            page = _open(page, found)
+            continue
+        if "linkedin.com" in page.url:
+            return page, "manual_linkedin", "LinkedIn - no company-site link (Easy Apply or sign-in needed)"
+        return page, "manual_no_link", f"the board hides the employer's link ({board_host}) - search the company's careers page"
+    # employer site: walk Apply buttons until a form or a sign-in gate shows (max 4 hops)
+    for hop in range(4):
+        ats = ats_of(page.url)
+        u = page.url
+        if ats == "lever" and not urllib.parse.urlparse(u).path.rstrip("/").endswith("/apply"):
+            page = _open(page, u.split("?")[0].rstrip("/") + "/apply")
+        elif ats == "ashby" and "/application" not in urllib.parse.urlparse(u).path:
+            page = _open(page, u.split("?")[0].rstrip("/") + "/application")
+        elif ats == "workable" and "/apply" not in urllib.parse.urlparse(u).path:
+            page = _open(page, u.split("?")[0].rstrip("/") + "/apply/")
+        if ats_of(page.url) or re.search(r"greenhouse\.io|workable\.com|lever\.co|ashbyhq|teamtailor|recruitee|breezy|zohorecruit", page.url):
+            for _ in range(8):  # hiring-system forms render with JavaScript - give them a moment
+                if _form_ready(page) or accounts.is_wall(page):
+                    break
+                page.wait_for_timeout(1250)
+        if _visible_captcha(page):
+            return page, "manual_captcha", "CAPTCHA before the form"
+        if _form_ready(page) or accounts.is_wall(page):
+            break
+        emb = next((f.url for f in page.frames[1:] if ats_of(f.url) or re.search(r"greenhouse\.io/embed|job_app|/apply", f.url or "")), None)
+        if emb:
+            page = _open(page, emb)
+            continue
+        before = page.url
+        _CLICKED.discard(id(page))
+        page = _press_apply(page, company, title, log)
+        if page.url == before and not _form_ready(page) and not accounts.is_wall(page):
+            page.wait_for_timeout(2000)
+            if not _form_ready(page) and not accounts.is_wall(page) and id(page) not in _CLICKED:
+                break  # nothing left to press
+    if "linkedin.com" in page.url and not _form_ready(page):
+        return page, "manual_linkedin", "LinkedIn - apply link not shown (Easy Apply or sign-in needed)"
+    if accounts.is_wall(page):
+        if job.get("_dry") and not accounts.saved(page.url):
+            return page, "manual_account", f"(dry run) would sign up / sign in on {urllib.parse.urlparse(page.url).netloc}"
+        if not cfg["submit"].get("create_accounts") and not accounts.saved(page.url):
+            return page, "manual_account", f"sign-in / account needed on {urllib.parse.urlparse(page.url).netloc}"
+        job["_form_url"] = page.url
+        ok, note = accounts.get_past_wall(page, job, cfg, log, _visible_captcha)
+        log(f"    account: {note}")
+        if not ok:
+            return page, "manual_account", note
+        if not _form_ready(page):
+            page = _press_apply(page, company, title, log)
+    if not _form_ready(page):
+        return page, "manual_no_form", f"no application form found on {urllib.parse.urlparse(page.url).netloc}"
+    return page, "form", ""
+
+
+STEP_TEXT = re.compile(r"^\s*(next|continue|save (and|&) continue|save & next|proceed|review( application)?|next step|go to next)\b", re.I)
+FINAL_TEXT = re.compile(r"submit|send( my)? application|apply( now)?$|finish|complete application", re.I)
+
+
+def _next_step_button(page):
+    """A visible Next / Continue button on a page that has no final Submit yet. Returns (element, text) or None."""
+    nxt, final = None, False
+    for e in page.query_selector_all('button, input[type=submit], [role=button], a.button, a.btn'):
+        try:
+            if not e.is_visible():
+                continue
+            t = (e.inner_text() or e.get_attribute("value") or "").strip()[:40]
+            if FINAL_TEXT.search(t) and not STEP_TEXT.match(t):
+                final = True
+            elif STEP_TEXT.match(t) and not nxt:
+                nxt = (e, t)
+        except Exception:
+            pass
+    return None if final else nxt
+
+
+def fill_and_submit(page, job, cfg, approved=True, log=print, _depth=0, _filled_before=0):
+    """Returns (status, note). status: submitted | needs_you | failed. Walks multi-page forms (max 8 pages)."""
     _decline_cookies(page)
     if page.query_selector('input[type="password"]'):
         return "needs_you", "login or account required on this site - sign in once, then click Retry"
@@ -264,6 +478,9 @@ def fill_and_submit(page, job, cfg, approved=True, log=print):
         if value:
             try:
                 v = ascii_clean(value)
+                if (el.get_attribute("type") or "").lower() == "number":
+                    m = re.search(r"\d[\d,. ]*", v)
+                    v = re.sub(r"[^\d.]", "", m.group(0)) if m else ""
                 el.fill(v)
                 try:
                     page.keyboard.press("Escape")  # close autocomplete popups
@@ -349,14 +566,33 @@ def fill_and_submit(page, job, cfg, approved=True, log=print):
     for q in _answer_choices(page, answers, log):
         unanswered.append(q)
 
+    if unanswered or cfg["submit"].get("ai_answers", True):
+        import answers_ai
+        resume_text = job.get("_resume_text") or ""
+        ai_filled, left = answers_ai.answer_form(page, job, cfg, resume_text, _rate_for(job, cfg, "") or "", log)
+        filled += ai_filled
+        unanswered = left
     if _visible_captcha(page):
-        return "needs_you", "CAPTCHA on the form - solve it and press submit yourself. Filled: " + ", ".join(filled)
+        return "needs_you", ("Prep manual apply - CAPTCHA on the form. Resume, cover letter and the answers below are ready"
+                             + (f"; still needs you: {'; '.join(unanswered)[:300]}" if unanswered else ""))
     if unanswered:
-        return "needs_you", "Questions only you can answer: " + "; ".join(dict.fromkeys(unanswered))[:600]
+        return "needs_you", "Prep manual apply - questions only you can answer: " + "; ".join(dict.fromkeys(unanswered))[:600]
     if "resume" not in filled and files:
         return "needs_you", "could not attach the resume automatically"
-    if not filled:
+    if not filled and not _depth:
         return "needs_you", "no application form found on this page"
+    step = _next_step_button(page)
+    if step and _depth < 8:
+        log(f"    page {_depth + 1} filled - pressing '{step[1]}'")
+        if not approved and _depth >= 0:
+            return "needs_you", f"filled page {_depth + 1} of a multi-page form, waiting for your approval"
+        step[0].click()
+        try:
+            page.wait_for_load_state("networkidle", timeout=15000)
+        except Exception:
+            pass
+        page.wait_for_timeout(2500)
+        return fill_and_submit(page, job, cfg, approved, log, _depth + 1, _filled_before + len(filled))
     if not approved:
         return "needs_you", "filled, waiting for your approval"
 
@@ -386,7 +622,19 @@ def fill_and_submit(page, job, cfg, approved=True, log=print):
     return "needs_you", "submitted but no confirmation text seen - check the open tab, then mark it"
 
 
-def run(jobs, log=print, dry=False):
+def _resume_text(job):
+    try:
+        from docx import Document
+        import tailor
+        p = job.get("resume_docx")
+        if p:
+            return tailor.full_text(Document(p))
+    except Exception:
+        pass
+    return ""
+
+
+def run(jobs, log=print, dry=False, auto=False):
     """jobs: list of approved job dicts (with resume paths). Yields (job_id, status, note)."""
     from playwright.sync_api import sync_playwright
     cfg = load_config()
@@ -397,25 +645,34 @@ def run(jobs, log=print, dry=False):
         try:
             for job in jobs[: cfg["submit"]["max_per_run"]]:
                 if job.get("ai_ban"):
-                    results.append((job["id"], "needs_you", "posting bans AI-assisted applications - write this one yourself"))
+                    results.append((job["id"], "needs_you", "Prep manual apply - posting bans AI-assisted applications, write this one yourself", "manual_ai_ban", None))
                     continue
                 page = ctx.new_page()
                 try:
-                    url = job.get("apply_url") or job.get("url")
-                    page = _go_to_form(page, url, ats_of(url))
-                    status, note = fill_and_submit(page, job, cfg, approved=not dry, log=log)
+                    job["_resume_text"] = _resume_text(job)
+                    job["_dry"] = dry
+                    page, route, why = _reach_form(page, job, cfg, log)
+                    if route == "form":
+                        status, note = fill_and_submit(page, job, cfg, approved=not dry, log=log)
+                        job["_route"] = "auto"
+                    elif route == "closed":
+                        status, note = "failed", why
+                    else:
+                        status, note = "needs_you", f"Prep manual apply - {why}"
+                    job["_route"] = route if route != "form" else ("manual_questions" if "questions only you" in note
+                                                                   else "manual_captcha" if "CAPTCHA" in note else "auto")
                     if dry:
                         page.screenshot(path=str(PROOFS / f'dry_{job["id"]}.png'), full_page=True)
                 except Exception as e:
                     status, note = "needs_you", f"automation error: {str(e)[:200]} - tab left open"
                 log(f"  {job['company']} - {job['title']}: {status} ({note[:120]})")
-                results.append((job["id"], status, note))
-                if status == "submitted" or dry:
+                results.append((job["id"], status, note, job.get("_route"), job.get("_qa")))
+                if status == "submitted" or dry or auto:
                     page.close()
                 else:
                     open_tabs += 1
                 time.sleep(random.uniform(*cfg["submit"]["delay_between_s"]))
-            if open_tabs and not dry:
+            if open_tabs and not dry and not auto:
                 log(f"{open_tabs} tab(s) need you. Finish them in the browser window, then close it. "
                     "Mark them done in the dashboard.")
                 deadline = time.time() + cfg["submit"].get("wait_for_you_minutes", 45) * 60
