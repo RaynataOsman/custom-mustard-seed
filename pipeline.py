@@ -9,6 +9,7 @@
   sweep      apply the one-family-per-platform rule to roles already waiting in Review
   all        scan + expire + prepare + replies  (this is what the scheduled task runs; it never submits)
   expire     move roles older than search.max_age_days out of New / Review
+  checklive  move roles whose posting was removed or closed out of New / Review  (checklive dry | checklive 500)
   replies    read employer replies in Gmail (read-only) -> Interview / Rejected / Offered in Notion
   board <name>   scan one board only (for testing)
 """
@@ -573,6 +574,10 @@ if __name__ == "__main__":
         else:
             log(f"safeguards applied to roles already in Review: {p} skipped by the platform rule, "
                 f"{n} by best-role-per-company / recruiter")
+    elif cmd == "checklive":
+        import liveness
+        rest = sys.argv[2:]
+        liveness.run(log, dry="dry" in rest, limit=next((int(a) for a in rest if a.isdigit()), None))
     elif cmd == "expire":
         import lifecycle
         lifecycle.expire_stale(log)
@@ -583,6 +588,11 @@ if __name__ == "__main__":
         import lifecycle
         scan()
         lifecycle.expire_stale(log)
+        try:
+            import liveness
+            liveness.run(log)  # before prepare: no AI time spent on roles that are already gone
+        except Exception as e:
+            log(f"removed-role check skipped: {type(e).__name__}: {e}")
         prepare()
         if load_config()["submit"].get("auto_submit"):
             try:
@@ -594,5 +604,12 @@ if __name__ == "__main__":
                 lifecycle.watch_replies(log)
             except Exception as e:
                 log(f"reply watch skipped: {type(e).__name__}: {e}")
+        try:  # keep the phone site current even when the PC dashboard isn't open
+            import cloud_sync
+            cs = cloud_sync.settings()
+            if cloud_sync.ready(cs):
+                log(f"online dashboard: {cloud_sync.push(cs)} changed role(s) sent")
+        except Exception as e:
+            log(f"online dashboard update skipped: {type(e).__name__}: {e}")
     else:
         print(__doc__)

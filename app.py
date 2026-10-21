@@ -16,7 +16,7 @@ KEY_NAMES = ["GEMINI_API_KEY", "GROQ_API_KEY", "CEREBRAS_API_KEY", "OPENROUTER_A
 
 
 RUN_JOBS = {"scan", "board", "prepare", "submit", "backfill", "retriage", "sweep", "tiers", "expire", "replies", "referrals",
-            "all", "discover", "dryfill", "login", "fixlinks"}
+            "all", "discover", "dryfill", "login", "fixlinks", "checklive"}
 
 
 def start_run(job, arg=None):
