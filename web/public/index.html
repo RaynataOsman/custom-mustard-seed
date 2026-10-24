@@ -94,12 +94,15 @@ const LENSES = [
   ["long_shot", "Long shots", (j) => (j.score || 0) < 50 || j.geo_ok == null],
   ["ai_ban", "Bans AI", (j) => !!j.ai_ban],
 ];
-const FAMILY = { dev: "Developer", design: "UX/UI design", admin: "Admin / VA", sales: "Sales", ecommerce: "E-commerce", bookkeeping: "Bookkeeping" };
+const FAMILY = { dev: "Developer", design: "UX/UI design", admin: "Admin / VA", sales: "Sales", ecommerce: "E-commerce", ai: "AI Full-Stack", cse: "Customer Success Eng.", bookkeeping: "Bookkeeping" };
+const CATS = [["ai_ml","AI / ML"],["ai_forward","AI-forward dev"],["solutions","Customer Success / Solutions"],["uxui","UX/UI Design"],["ecommerce","Shopify / E-commerce"],["mobile","Mobile"],["cloud","Cloud / DevOps"],["data","Data / Analytics"],["qa","QA / Testing"],["it_systems","IT / Systems / Security"],["fullstack","Full-Stack"],["frontend","Frontend"],["backend","Backend"],["dev_general","Software (general)"],["va","Virtual Assistant"],["support","Customer Service / Support"],["admin","Admin / Operations"],["sales","Sales / Account Mgmt"],["marketing","Marketing / Content / SEO"],["product","Product / Project"],["other","Other"]];
+const CAT = Object.fromEntries(CATS);
+const CAT_GROUPS = [["Tech",["ai_ml","ai_forward","fullstack","frontend","backend","dev_general","mobile","cloud","data","qa","it_systems"]],["Design",["uxui"]],["Customer & operations",["solutions","support","va","admin"]],["Business",["ecommerce","sales","marketing","product"]],["Other",["other"]]];
 const EMPLOYER = { overseas_direct: "Overseas, direct", overseas_platform: "Overseas platform", sa_local: "SA local", sa_aggregator: "SA agency", unknown: "Unknown" };
 const SORTS = [["fit", "Best fit"], ["newest", "Newest posted"], ["found", "Recently found"], ["company", "Company A-Z"]];
 
 function fkey() { return "ms-f-" + TAB; }
-function getF() { try { return Object.assign({ lens: "all", q: "", family: "", tier: "", employer: "", board: "", sort: "fit" }, JSON.parse(localStorage.getItem(fkey()) || "{}")); } catch { return { lens: "all", q: "", family: "", tier: "", employer: "", board: "", sort: "fit" }; } }
+function getF() { try { return Object.assign({ lens: "all", q: "", category: "", family: "", tier: "", employer: "", board: "", sort: "fit" }, JSON.parse(localStorage.getItem(fkey()) || "{}")); } catch { return { lens: "all", q: "", category: "", family: "", tier: "", employer: "", board: "", sort: "fit" }; } }
 function setF(patch) { const f = Object.assign(getF(), patch); try { localStorage.setItem(fkey(), JSON.stringify(f)); } catch {} SHOWN[TAB] = PAGE; return f; }
 
 function applyFilters(list, f, skipLens) {
@@ -108,6 +111,7 @@ function applyFilters(list, f, skipLens) {
   const lens = (LENSES.find((l) => l[0] === f.lens) || LENSES[0])[2];
   let out = list.filter((j) => {
     if (!skipLens && !lens(j)) return false;
+    if (f.category && (j.category || "other") !== f.category) return false;
     if (f.family && j.family !== f.family) return false;
     if (f.tier && j.tier !== f.tier) return false;
     if (f.employer && (j.employer_type || "unknown") !== f.employer) return false;
@@ -133,9 +137,10 @@ function filterBar(list, f) {
   const base = applyFilters(list, Object.assign({}, f, { lens: "all" }), true);
   return `<div class="card filters" role="search">
    <div class="row" style="flex-wrap:nowrap"><label class="sr" for="fq">Search roles</label><input id="fq" type="search" placeholder="Search title, company, board, salary..." value="${esc(f.q)}" autocomplete="off" style="flex:1">
-   ${(f.q || f.family || f.tier || f.employer || f.board || f.lens !== "all") ? `<button class="btn btn-ghost" onclick="resetF()">Clear</button>` : ""}</div>
+   ${(f.q || f.category || f.family || f.tier || f.employer || f.board || f.lens !== "all") ? `<button class="btn btn-ghost" onclick="resetF()">Clear</button>` : ""}</div>
    <div class="chips" aria-label="Quick categories">${LENSES.map(([k, l, fn]) => `<button class="chip ${f.lens === k ? "on" : ""}" aria-pressed="${f.lens === k}" onclick="pickLens('${k}')">${l}<span class="c">${base.filter(fn).length}</span></button>`).join("")}</div>
    <div class="selects">
+    ${catSelect(list, f)}
     <select aria-label="Resume" onchange="pick('family',this.value)">${opts(countBy(list, (j) => j.family), FAMILY, f.family, "Any resume")}</select>
     <select aria-label="Level" onchange="pick('tier',this.value)">${opts(countBy(list, (j) => j.tier), null, f.tier, "Any level")}</select>
     <select aria-label="Employer" onchange="pick('employer',this.value)">${opts(countBy(list, (j) => j.employer_type || "unknown"), EMPLOYER, f.employer, "Any employer")}</select>
@@ -146,6 +151,10 @@ function filterBar(list, f) {
 let qTimer;
 function bindSearch() { const i = $("#fq"); if (!i) return; i.oninput = () => { clearTimeout(qTimer); qTimer = setTimeout(() => { const pos = i.selectionStart; setF({ q: i.value }); draw(); const n = $("#fq"); if (n) { n.focus(); try { n.setSelectionRange(pos, pos); } catch {} } }, 220); }; }
 function pickLens(k) { setF({ lens: k }); draw(); }
+function catSelect(list, f) {
+  const n = {}; list.forEach((j) => { const c = j.category || "other"; n[c] = (n[c] || 0) + 1; });
+  return `<select aria-label="Role type" onchange="pick('category',this.value)"><option value="">Any role type</option>${CAT_GROUPS.map(([g, ks]) => { const o = ks.filter((k) => n[k] || f.category === k); return o.length ? `<optgroup label="${g}">${o.map((k) => `<option value="${k}" ${f.category === k ? "selected" : ""}>${esc(CAT[k])} (${n[k] || 0})</option>`).join("")}</optgroup>` : ""; }).join("")}</select>`;
+}
 function pick(k, v) { setF({ [k]: v }); draw(); }
 function resetF() { try { localStorage.removeItem(fkey()); } catch {} SHOWN[TAB] = PAGE; draw(); }
 function more() { SHOWN[TAB] = (SHOWN[TAB] || PAGE) + PAGE; draw(true); }
@@ -282,7 +291,7 @@ function jobCard(j, mode) {
   return `<article class="card ${pend ? "pending" : ""}">
   <div class="row between" style="align-items:flex-start"><div style="min-width:0;flex:1 1 260px"><div class="title">${esc(j.title)}</div>
    <div class="small">${esc(j.company)} <span class="muted">- ${esc(j.location || "")}${posted ? " - " + posted : ""}</span></div>
-   <div class="row" style="margin-top:6px">${geoBadge(j)}<span class="badge" title="Resume version">${esc(j.version)}</span><span class="badge">fit ${Math.round(j.score || 0)}</span><span class="badge">${esc(j.board)}</span>${j.salary ? `<span class="badge">${esc(j.salary)}</span>` : ""}${j.employment_type ? `<span class="badge">${esc(j.employment_type)}</span>` : ""}${j.is_platform ? '<span class="badge" title="One resume family per platform">platform</span>' : ""}${nc ? `<span class="badge">${nc} referral${nc > 1 ? "s" : ""}</span>` : ""}${j.ai_ban ? '<span class="badge b-bad">Bans AI applications - write it yourself</span>' : ""}${j.in_notion ? '<span class="badge">in Notion</span>' : ""}${routeBadge(j)}</div>
+   <div class="row" style="margin-top:6px">${geoBadge(j)}${j.category ? `<span class="badge" title="Role type">${esc(CAT[j.category] || j.category)}</span>` : ""}<span class="badge" title="Resume version">${esc(j.version)}</span><span class="badge">fit ${Math.round(j.score || 0)}</span><span class="badge">${esc(j.board)}</span>${j.salary ? `<span class="badge">${esc(j.salary)}</span>` : ""}${j.employment_type ? `<span class="badge">${esc(j.employment_type)}</span>` : ""}${j.is_platform ? '<span class="badge" title="One resume family per platform">platform</span>' : ""}${nc ? `<span class="badge">${nc} referral${nc > 1 ? "s" : ""}</span>` : ""}${j.ai_ban ? '<span class="badge b-bad">Bans AI applications - write it yourself</span>' : ""}${j.in_notion ? '<span class="badge">in Notion</span>' : ""}${routeBadge(j)}</div>
    ${lockHTML(j)}</div>
    <div class="row">${pend ? `<span class="small muted">${esc(pend)}</span>` : actions}</div></div>
   ${j.status_note ? `<p class="small ${mode === "needs" ? "" : "muted"}" style="margin:8px 0 0">${esc(j.status_note)}</p>` : ""}${qaHTML(j)}

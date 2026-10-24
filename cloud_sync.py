@@ -25,7 +25,7 @@ _STOP = threading.Event()
 _KICK = threading.Event()
 ACTIVE = ("ready", "approved", "retry", "preparing", "submitting", "needs_you", "failed")
 RUN_JOBS = {"scan", "prepare", "submit", "all", "backfill", "tiers", "retriage", "sweep", "referrals", "expire", "replies",
-            "board"}
+            "board", "categories"}
 MAX_FILE_BYTES = 900_000
 PRELOAD_READY = 20
 
@@ -110,7 +110,7 @@ def _payload(c, j):
         "id": j["id"], "status": j["status"], "status_note": j.get("status_note"), "apply_route": j.get("apply_route"), "prep_answers": j.get("prep_answers"), "title": j["title"],
         "company": j.get("company"), "location": j.get("location"), "board": j.get("board"), "url": j.get("url"),
         "apply_url": j.get("apply_url"), "score": j.get("score") or 0, "score_reasons": (j.get("score_reasons") or "")[:600],
-        "family": j.get("family"), "tier": j.get("tier"),
+        "family": j.get("family"), "tier": j.get("tier"), "category": j.get("category"),
         "version": j.get("version_sent") or safeguards.version_label(j.get("family"), j.get("tier")),
         "geo_ok": j.get("geo_ok"), "geo_reason": (j.get("geo_reason") or "")[:300], "employer_type": j.get("employer_type"),
         "salary": _salary(j.get("salary")), "employment_type": j.get("employment_type"), "posted_at": j.get("posted_at"),
