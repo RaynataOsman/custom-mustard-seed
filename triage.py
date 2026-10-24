@@ -343,8 +343,14 @@ FOREIGN = re.compile(r"\b(united states|united kingdom|france|germany|spain|ital
 def family_of(title, cfg):
     t = title.lower()
     fams = cfg["families"]
+    for fam in ("ai", "cse"):  # specialist paths are checked before the developer-first patterns
+        if fam in fams and any(re.search(p, t) for p in fams[fam].get("title_patterns", [])):
+            return fam
     if "dev" in fams and any(re.search(p, t) for p in cfg.get("search", {}).get("dev_first", [])):
         return "dev"  # technical-first titles (e.g. Customer Success Engineer) use the developer resume
+    if "ecommerce" in fams and not re.search(r"develop|engineer|programmer|coder", t) \
+            and any(re.search(p, t) for p in fams["ecommerce"].get("title_patterns", [])):
+        return "ecommerce"
     for fam in [f for f in ("admin", "design") if f in fams] + [f for f in fams if f not in ("admin", "design")]:
         spec = fams[fam]
         if any(re.search(p, t) for p in spec["title_patterns"]):

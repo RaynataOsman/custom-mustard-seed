@@ -16,11 +16,15 @@ import llm
 
 W_T = qn("w:t")
 FAMILY_FILE = {"dev": "Full-Stack Developer", "design": "UX-UI Figma Designer",
-               "admin": "Administrative & Virtual Assistant"}
+               "admin": "Administrative & Virtual Assistant", "ecommerce": "E-commerce",
+               "ai": "AI Full-Stack Developer", "cse": "Customer Success Engineer"}
 
 
 def master_path(family, tier):
-    p = MASTERS / f"{family}_{tier}.docx"
+    p = MASTERS / f"{family}.docx"  # one master per career path
+    if p.exists():
+        return p
+    p = MASTERS / f"{family}_{tier}.docx"  # legacy tier files
     if not p.exists():
         cands = sorted(MASTERS.glob(f"{family}_*.docx"))
         if not cands:
@@ -47,9 +51,47 @@ def full_text(doc):
     return "\n".join("".join(t.text or "" for t in _texts(p)) for p in doc.paragraphs)
 
 
+def _is_list(p):
+    ppr = p._p.pPr
+    return ppr is not None and ppr.numPr is not None
+
+
 def structure(doc):
     """Find the editable parts: summary paragraph, experience bullets, skills paragraph(s)."""
     paras = doc.paragraphs
+    if not any((p.style.name or "").lower().startswith("heading") and p.text.strip() for p in paras):
+        return _structure_flat(paras)
+    return _structure_headings(paras)
+
+
+def _structure_flat(paras):
+    """One-master format (Masters 3.x): no heading styles; bullets are list paragraphs,
+    role lines / section titles are plain short paragraphs, skills are comma lists."""
+    items, in_exp, summary_done, skills = [], False, False, []
+    for i, p in enumerate(paras):
+        txt = "".join(t.text or "" for t in _texts(p)).strip()
+        if not txt or i <= 1:
+            continue
+        if txt.upper() == "EXPERIENCE":
+            in_exp = True
+            continue
+        if not in_exp:
+            if not summary_done and len(txt) > 120:
+                items.append({"id": f"p{i}", "kind": "summary", "text": txt})
+                summary_done = True
+            continue
+        if _is_list(p):
+            if 25 < len(txt) < 600:
+                items.append({"id": f"p{i}", "kind": "bullet", "text": txt})
+            continue
+        if re.match(r"^(tech stack|tools)\s*:", txt, re.I):
+            continue
+        if txt.count(",") >= 3 and len(txt) > 60:
+            skills.append(i)
+    return items, skills
+
+
+def _structure_headings(paras):
     items, in_exp, summary_done, skills = [], False, False, []
     for i, p in enumerate(paras):
         txt = "".join(t.text or "" for t in _texts(p)).strip()
@@ -78,7 +120,9 @@ def structure(doc):
 def vocab(family):
     """Lowercased skill vocabulary from every master of a family (used for scoring and guards)."""
     words = set()
-    for f in MASTERS.glob(f"{family}_*.docx"):
+    files = [MASTERS / f"{family}.docx"] if (MASTERS / f"{family}.docx").exists() \
+        else sorted(MASTERS.glob(f"{family}_*.docx"))
+    for f in files:
         t = full_text(Document(f))
         for chunk in re.split(r"[,\n:()|/&]+", t):
             c = chunk.strip().lower()
@@ -329,7 +373,7 @@ def tailor(job, family, tier, retry_note=None, log=print):
     fix_header(doc, family, cfg)
     sanitize_doc(doc, cfg)
 
-    name = f'{cfg["profile"]["name"]} {FAMILY_FILE[family]} 2026 Resume_{slug(job["company"], 40)}_{slug(job["title"], 50)}'
+    name = f'{cfg["profile"]["name"]} {FAMILY_FILE.get(family, family.title())} 2026 Resume_{slug(job["company"], 40)}_{slug(job["title"], 50)}'
     out_dir = Path(cfg["paths"]["resume_copies"])
     out_dir.mkdir(parents=True, exist_ok=True)
     docx_path = out_dir / f"{name}.docx"

@@ -72,6 +72,12 @@ def conn():
         c.execute("ALTER TABLE jobs ADD COLUMN allow_override INTEGER DEFAULT 0")  # "Allow anyway" pressed by the owner
     except sqlite3.OperationalError:
         pass
+    cat_added = False
+    try:
+        c.execute("ALTER TABLE jobs ADD COLUMN category TEXT")  # role category (display/filter only)
+        cat_added = True
+    except sqlite3.OperationalError:
+        pass
     for col in ("resume_edited_at", "cover_edited_at", "apply_route", "prep_answers"):  # set when you hand-edit the tailored copy
         try:
             c.execute(f"ALTER TABLE jobs ADD COLUMN {col} TEXT")
@@ -89,9 +95,13 @@ def conn():
     c.execute("CREATE INDEX IF NOT EXISTS ix_jobs_company_norm ON jobs(company_norm)")
     c.execute("CREATE INDEX IF NOT EXISTS ix_contacts_url_norm ON contacts(url_norm)")
     c.execute("CREATE INDEX IF NOT EXISTS ix_jobs_status ON jobs(status)")
+    c.execute("CREATE INDEX IF NOT EXISTS ix_jobs_category ON jobs(category)")
     c.execute("CREATE INDEX IF NOT EXISTS ix_board_runs_board ON board_runs(board, id)")
     c.execute("CREATE INDEX IF NOT EXISTS ix_jobs_ck_null ON jobs(status) WHERE contact_keys IS NULL")
     _backfill_norms(c)
+    if cat_added:  # first run after the upgrade: sort every existing role into a category
+        import categories
+        categories.backfill(c)
     _SCHEMA_DONE.add(str(DB_PATH))
     return c
 

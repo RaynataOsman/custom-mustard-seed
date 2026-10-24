@@ -19,6 +19,9 @@ MANAGER_TITLES = {
     "dev": '("engineering manager" OR "head of engineering" OR CTO OR "tech lead" OR founder)',
     "design": '("head of design" OR "design lead" OR "design manager" OR "creative director" OR founder)',
     "admin": '("operations manager" OR "head of operations" OR "customer success manager" OR "head of support" OR founder)',
+    "ecommerce": '("head of e-commerce" OR "e-commerce manager" OR "ecommerce manager" OR founder)',
+    "ai": '("AI engineering manager" OR "head of AI" OR CTO OR founder)',
+    "cse": '("head of customer success" OR "solutions engineering manager" OR "VP customer success")',
 }
 
 
@@ -273,6 +276,9 @@ HOOKS = {
     "dev": "I build Shopify and React/Next.js e-commerce sites",
     "design": "I design Figma e-commerce and landing page experiences and can build them too",
     "admin": "I handle e-commerce admin, customer support and client operations",
+    "ecommerce": "I run and build Shopify stores",
+    "ai": "I build AI automations and Shopify / React / Next.js sites",
+    "cse": "I connect APIs and CRMs and get customers live",
 }
 
 

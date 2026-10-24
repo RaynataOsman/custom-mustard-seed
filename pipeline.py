@@ -14,7 +14,7 @@
   board <name>   scan one board only (for testing)
 """
 import json, sys, time, traceback, datetime, re
-import db, triage, boards, tailor, referrals, safeguards
+import db, triage, boards, tailor, referrals, safeguards, categories
 from util import load_config, Log, job_key, get, strip_html, force_utf8_stdout, now_iso, OUT, feature
 
 force_utf8_stdout()
@@ -183,7 +183,8 @@ def _triage_one(c, j, track, cfg):
         pass
     db.set_job(c, j["id"], family=fam, tier=tier, geo_ok=ok, geo_reason=why, score=score,
                score_reasons="; ".join(reasons), ai_ban=ai_ban, status=status,
-               employer_type=emp_type, employer_reason=emp_reason, tz_reason=tz_reason)
+               employer_type=emp_type, employer_reason=emp_reason, tz_reason=tz_reason,
+               category=categories.category_of(j["title"], j.get("description") or ""))
 
 
 def retriage():
@@ -560,6 +561,9 @@ if __name__ == "__main__":
             ats_discover.resolve(n, log=log, force=True)
     elif cmd == "retriage":
         retriage()
+    elif cmd == "categories":
+        n = categories.backfill(db.conn(), only_missing=False)
+        log(f"role categories re-sorted for {n} role(s)")
     elif cmd == "backfill":
         backfill()
     elif cmd == "referrals":

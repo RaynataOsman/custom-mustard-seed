@@ -16,7 +16,7 @@ KEY_NAMES = ["GEMINI_API_KEY", "GROQ_API_KEY", "CEREBRAS_API_KEY", "OPENROUTER_A
 
 
 RUN_JOBS = {"scan", "board", "prepare", "submit", "backfill", "retriage", "sweep", "tiers", "expire", "replies", "referrals",
-            "all", "discover", "dryfill", "login", "fixlinks", "checklive"}
+            "all", "discover", "dryfill", "login", "fixlinks", "checklive", "categories"}
 
 
 def start_run(job, arg=None):
@@ -148,7 +148,7 @@ def _job_filters(q):
     if status != "all":
         where.append("status IN (" + ",".join("?" * len(status.split(","))) + ")")
         args += status.split(",")
-    for key, col in (("board", "board"), ("family", "family"), ("tier", "tier"), ("employer", "employer_type")):
+    for key, col in (("board", "board"), ("family", "family"), ("tier", "tier"), ("employer", "employer_type"), ("category", "category")):
         val = q.get(key, [""])[0]
         if val:
             where.append(f"{col}=?")
@@ -207,7 +207,7 @@ def job_facets(q):
         out["lenses"][k] = db.rows(c, f"SELECT count(*) n FROM jobs WHERE {base} AND ({cond})", args)[0]["n"]
     sw, sa = _job_filters({"status": q.get("status", ["ready"])})
     sb = " AND ".join(sw) or "1=1"
-    for col in ("family", "tier", "board", "employer_type"):
+    for col in ("family", "tier", "board", "employer_type", "category"):
         out[col] = [[r["v"], r["n"]] for r in db.rows(
             c, f"SELECT {col} v, count(*) n FROM jobs WHERE {sb} AND {col} IS NOT NULL GROUP BY {col} ORDER BY n DESC", sa)]
     return out
@@ -463,7 +463,7 @@ def add_family(b):
     qs = cfg["search"].setdefault("queries", [])
     qs += [q for q in pr.get("queries", []) if q not in qs]
     save_config_text(json.dumps(cfg, indent=2))
-    return {"ok": True, "masters_needed": [f"{name}_{t}.docx" for t in pr["tiers"]]}
+    return {"ok": True, "masters_needed": [f"{name}.docx"]}
 
 
 PROFILE_FIELDS = ["first_name", "last_name", "email", "phone", "location", "linkedin", "portfolio", "github", "notice"]
@@ -514,13 +514,13 @@ def remove_family(b):
 def upload_master(b):
     import base64
     cfg = load_config()
-    fam, tier = b.get("family"), b.get("tier")
-    if fam not in cfg["families"] or tier not in cfg["families"][fam]["tiers"]:
-        return {"ok": False, "error": "pick a family and level that exist"}
+    fam = b.get("family")  # one master per family; any "tier" value sent by old clients is ignored
+    if fam not in cfg["families"]:
+        return {"ok": False, "error": "pick a family that exists"}
     data = base64.b64decode(b.get("data_b64", ""))
     if not data.startswith(b"PK"):
         return {"ok": False, "error": "that is not a .docx file (save it from Word / Google Docs as .docx)"}
-    dest = ROOT / "masters" / f"{fam}_{tier}.docx"
+    dest = ROOT / "masters" / f"{fam}.docx"
     dest.parent.mkdir(exist_ok=True)
     if dest.exists():
         dest.replace(dest.with_suffix(".docx.bak"))

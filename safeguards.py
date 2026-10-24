@@ -50,7 +50,7 @@ _SUFFIX = re.compile(r"\b(inc|incorporated|llc|l\.l\.c|ltd|limited|gmbh|ag|pty|c
                      r"holdings|ab|bv|b\.v|sa|sas|srl|plc|oy|as|aps|kk|pte|sarl|nv|careers?|jobs|hiring|hq|"
                      r"remote|global|international|the)\b\.?", re.I)
 FAMILY_LABEL = {"dev": "Dev", "design": "Design", "admin": "Admin", "bookkeeping": "Bookkeeping",
-                "ecommerce": "Ecommerce", "sales": "Sales"}
+                "ecommerce": "E-commerce", "sales": "Sales", "ai": "AI", "cse": "CSE"}
 
 # "company" values that mean the employer is hidden - two of these are NOT the same company
 UNKNOWN_COMPANIES = {"confidential", "confidentialcompany", "confidentialemployer", "stealth", "stealthstartup",
@@ -210,6 +210,12 @@ def version_label(family, tier):
     """('dev', 'HM') -> 'HM_ Dev'  (matches the resume file prefixes HM_, J-M_, ...)."""
     if not family:
         return tier or "?"
+    try:
+        from util import MASTERS
+        if (MASTERS / f"{family}.docx").exists():
+            return FAMILY_LABEL.get(family, family.title())
+    except Exception:
+        pass
     return f"{tier or 'ONE'}_ {FAMILY_LABEL.get(family, family.title())}"
 
 

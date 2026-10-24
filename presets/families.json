@@ -146,5 +146,58 @@
       "ui ux designer",
       "product designer"
     ]
+  },
+  "ai": {
+    "label": "AI Full-Stack Developer",
+    "tiers": [
+      "ONE"
+    ],
+    "headline": "AI Full-Stack Developer",
+    "title_patterns": [
+      "\\bai\\b.*\\b(full[- ]?stack|developer|engineer)\\b",
+      "\\b(full[- ]?stack|software|web)\\b.*\\b(developer|engineer)\\b.*\\bai\\b",
+      "\\bllm\\b.*\\b(developer|engineer|application)",
+      "\\bai (product|application|app|automation) (engineer|developer)",
+      "\\bagentic\\b.*\\b(developer|engineer)",
+      "\\bagents? (engineer|developer)\\b",
+      "\\bforward[- ]deployed\\b",
+      "\\bautomation engineer\\b",
+      "\\bprompt engineer\\b"
+    ],
+    "core": "\\b(llm|openai|anthropic|claude|gpt|langchain|rag|agent|agentic|prompt|embeddings|vector|mcp|react|next\\.?js|typescript|node(\\.?js)?|python|api)\\b",
+    "queries": [
+      "ai full stack developer",
+      "ai engineer",
+      "llm application developer",
+      "ai automation engineer",
+      "agentic ai developer",
+      "ai product engineer"
+    ]
+  },
+  "cse": {
+    "label": "Customer Success Engineer",
+    "tiers": [
+      "ONE"
+    ],
+    "headline": "Customer Success Engineer",
+    "title_patterns": [
+      "\\bcustomer success (engineer|manager|specialist)",
+      "\\bsolutions? (engineer|architect|consultant)",
+      "\\bimplementation (engineer|specialist|consultant|manager)",
+      "\\bintegrations? (engineer|specialist)",
+      "\\btechnical account manager\\b",
+      "\\bsales engineer\\b",
+      "\\bpre-?sales\\b",
+      "\\bonboarding (specialist|engineer|manager)",
+      "\\b(customer|support) engineer\\b"
+    ],
+    "core": "\\b(api|integration|onboarding|implementation|saas|customer|troubleshoot|sql|webhook|crm|support|technical|documentation|rest|json)\\b",
+    "queries": [
+      "customer success engineer",
+      "solutions engineer",
+      "implementation engineer",
+      "technical account manager",
+      "integrations engineer"
+    ]
   }
 }
