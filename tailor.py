@@ -8,6 +8,7 @@ Rules (from the Resume Tier Map):
   * plain ASCII, no invisible characters, no embedded fonts, clean metadata
 """
 import copy, io, json, re, shutil, zipfile
+import coverletter
 from pathlib import Path
 from docx import Document
 from docx.oxml.ns import qn
@@ -307,14 +308,14 @@ def _prompt(job, items, master_txt, family, tier, cfg, retry_note):
         "task": ("Rewrite the summary to target this role at the " + lvl + " level, rewrite up to "
                  + str(cfg["resume"]["max_bullet_edits"]) +
                  " bullets so the strongest matches to the posting read first and use the posting's wording "
-                 "where the resume supports it. Then write a cover letter (120-200 words, 3 short paragraphs, "
-                 "no address block, sign off with the name), interview prep notes, and list posting "
-                 "requirements the resume does NOT show."),
+                 "where the resume supports it. Then write the cover letter. " + coverletter.rules_text(job, cfg) +
+                 " Also write interview prep notes, and list posting requirements the resume does NOT show."),
         "candidate": {"name": p["name"], "based_in": p["location"], "timezone": p["timezone"],
                       "work_setup": p["work_setup"]},
         "retry_instructions_from_candidate": retry_note or "",
         "job": {"title": job["title"], "company": job["company"], "location": job.get("location"),
                 "description": (job.get("description") or "")[:7000]},
+        "cover_letter_style_examples": coverletter.style_examples(),
         "resume_full_text": master_txt[:9000],
         "editable_paragraphs": items,
         "return_format": {
@@ -361,7 +362,7 @@ def tailor(job, family, tier, retry_note=None, log=print):
         if dropped:
             log(f"  cover letter: removed {len(dropped)} sentence(s) with figures not on your resume")
             result["edits_rejected"] += [{"id": "cover", "why": "figure not on resume", "text": d} for d in dropped]
-        result["cover_letter"] = cover if len(cover) > 300 else fallback_cover(job, cfg, master_txt)
+        result["cover_letter"] = coverletter.finish(cover, cfg) if len(cover) > 300 else fallback_cover(job, cfg, master_txt)
         result["interview_prep"] = [ascii_clean(x) for x in (data.get("interview_prep") or [])]
         result["gaps"] = [ascii_clean(x) for x in (data.get("gaps") or [])]
         result["fit_line"] = ascii_clean(data.get("fit_line") or "")
@@ -406,5 +407,5 @@ def fallback_cover(job, cfg, master_txt=""):
     body += ["Every role I have held has been remote and client-facing, so I am used to turning a loose brief into "
              "something specific enough to build, and to flagging problems early rather than late.",
              "I would welcome a short call to talk through the role and what your team is working on.",
-             f"{sign},\n{p['name']}"]
-    return ascii_clean("\n\n".join(body))
+             ]
+    return coverletter.finish(ascii_clean("\n\n".join(body)), cfg)

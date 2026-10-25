@@ -1010,8 +1010,8 @@
   ],
   "cover_letter": {
     "example_file": "masters/cover_letter_example.txt",
-    "words": "250-350",
+    "words": "220-300",
     "sign_off": "Kind regards",
-    "note": "Paste one of your own best cover letters in Settings > Cover letter example. It sets the structure and voice; facts always come from the resume."
+    "note": "The cover letter standard (structure, length, ending) lives in coverletter.py and applies to every role. The example here is extra voice only; facts always come from the resume."
   }
 }
