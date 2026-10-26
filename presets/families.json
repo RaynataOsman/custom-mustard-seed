@@ -43,7 +43,16 @@
       "\\bstore manager\\b.*\\bonline",
       "\\bproduct listing",
       "\\bonline store\\b",
-      "\\bdtc\\b"
+      "\\bdtc\\b",
+      "\\bshopify (support|advisor|operations|ops|merchant|assistant)",
+      "\\bstore (operations|ops|manager)\\b",
+      "\\blistings? (specialist|coordinator|manager|associate)",
+      "\\bklaviyo\\b",
+      "\\bemail (marketing )?(specialist|manager|coordinator)",
+      "\\bmerchandis(er|ing)\\b",
+      "\\b(cro|conversion rate)\\b.*\\b(specialist|manager|analyst)",
+      "\\bonline (store|shop) (manager|specialist|assistant)",
+      "\\bproduct (data|content|information) (specialist|manager|coordinator|associate)"
     ],
     "core": "\\b(shopify|woocommerce|amazon|seller central|etsy|takealot|listing|inventory|fulfil|marketplace|conversion|product (catalog|catalogue|feed)|klaviyo)",
     "queries": [
@@ -162,7 +171,11 @@
       "\\bagents? (engineer|developer)\\b",
       "\\bforward[- ]deployed\\b",
       "\\bautomation engineer\\b",
-      "\\bprompt engineer\\b"
+      "\\bprompt engineer\\b",
+      "\\b(ai|llm|genai) (trainer|tutor|evaluator|rater|annotator|specialist|operations|ops)\\b",
+      "\\bdata annotat",
+      "\\bprompt (specialist|writer|designer)\\b",
+      "\\bai automation (specialist|consultant|manager)\\b"
     ],
     "core": "\\b(llm|openai|anthropic|claude|gpt|langchain|rag|agent|agentic|prompt|embeddings|vector|mcp|react|next\\.?js|typescript|node(\\.?js)?|python|api)\\b",
     "queries": [

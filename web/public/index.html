@@ -83,9 +83,12 @@ const FILTER_TABS = ["review", "found", "applied", "needs"];
 // ---------- quick categories (same rules as the PC dashboard) ----------
 const DAY = 864e5;
 const when = (j) => Date.parse((j.posted_at || j.found_at || "").slice(0, 10)) || 0;
+const EASY_CATS = new Set(["support", "va", "admin", "ecommerce", "solutions", "marketing", "product"]);
+const CODING_RX = /leetcode|hackerrank|codility|codesignal|coding (challenge|test|assessment|exercise)|live coding|technical coding/i;
 const LENSES = [
   ["all", "All", () => true],
   ["best", "Best match", (j) => (j.score || 0) >= 70 && j.geo_ok == 1],
+  ["easy", "Easy wins", (j) => (EASY_CATS.has(j.category) || (j.category === "ai_ml" && /trainer|annotat|evaluat|rater|tutor/i.test(j.title || ""))) && !/engineer|developer|architect|programmer|devops/i.test(j.title || "") && !CODING_RX.test(j.description || "") && (j.geo_ok == null || j.geo_ok == 1)],
   ["open_sa", "Open to SA", (j) => j.geo_ok == 1],
   ["fresh", "Fresh (3 days)", (j) => when(j) >= Date.now() - 3 * DAY],
   ["contract", "Contract / part-time", (j) => /contract|part|freelance/i.test(j.employment_type || "") || /stackable/i.test(j.score_reasons || "")],
@@ -93,6 +96,7 @@ const LENSES = [
   ["referrals", "Has referrals", (j) => (j.contacts || []).length > 0],
   ["long_shot", "Long shots", (j) => (j.score || 0) < 50 || j.geo_ok == null],
   ["ai_ban", "Bans AI", (j) => !!j.ai_ban],
+  ["coding_test", "Mentions coding test", (j) => CODING_RX.test(j.description || "")],
 ];
 const FAMILY = { dev: "Developer", design: "UX/UI design", admin: "Admin / VA", sales: "Sales", ecommerce: "E-commerce", ai: "AI Full-Stack", cse: "Customer Success Eng.", bookkeeping: "Bookkeeping" };
 const CATS = [["ai_ml","AI / ML"],["ai_forward","AI-forward dev"],["solutions","Customer Success / Solutions"],["uxui","UX/UI Design"],["ecommerce","Shopify / E-commerce"],["mobile","Mobile"],["cloud","Cloud / DevOps"],["data","Data / Analytics"],["qa","QA / Testing"],["it_systems","IT / Systems / Security"],["fullstack","Full-Stack"],["frontend","Frontend"],["backend","Backend"],["dev_general","Software (general)"],["va","Virtual Assistant"],["support","Customer Service / Support"],["admin","Admin / Operations"],["sales","Sales / Account Mgmt"],["marketing","Marketing / Content / SEO"],["product","Product / Project"],["other","Other"]];

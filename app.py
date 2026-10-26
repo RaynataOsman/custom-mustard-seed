@@ -129,9 +129,23 @@ def overview():
             "runs": runs_snapshot(), "not_scraped": cfg.get("not_scraped", {}).get("list", [])}
 
 
+# "Easy wins": non-technical role types that do not ask for a coding challenge (see also categories.py).
+_CODING_TERMS = ("leetcode", "hackerrank", "codility", "codesignal", "coding challenge", "coding test",
+                 "coding assessment", "coding exercise", "live coding", "technical coding")
+_CODING_SQL = "(" + " OR ".join(f"lower(coalesce(description,'')) LIKE '%{t}%'" for t in _CODING_TERMS) + ")"
+_EASY_TITLE_NOT = ("engineer", "developer", "architect", "programmer", "devops")
+_EASY_SQL = (
+    "(category IN ('support','va','admin','ecommerce','solutions','marketing','product') "
+    "OR (category = 'ai_ml' AND (lower(title) LIKE '%trainer%' OR lower(title) LIKE '%annotat%' "
+    "OR lower(title) LIKE '%evaluat%' OR lower(title) LIKE '%rater%' OR lower(title) LIKE '%tutor%'))) "
+    + "".join(f"AND lower(title) NOT LIKE '%{t}%' " for t in _EASY_TITLE_NOT)
+    + "AND NOT " + _CODING_SQL + " AND (geo_ok IS NULL OR geo_ok = 1)")
+
 LENSES = {
     # quick categories on Review / All found. Each is a SQL condition on the jobs table.
     "best": "score >= 70 AND geo_ok = 1",
+    "easy": _EASY_SQL,
+    "coding_test": _CODING_SQL,
     "open_sa": "geo_ok = 1",
     "fresh": "date(coalesce(nullif(posted_at,''), found_at)) >= date('now','-3 day')",
     "contract": "(lower(coalesce(employment_type,'')) GLOB '*contract*' OR lower(coalesce(employment_type,'')) GLOB '*part*' "
