@@ -1,7 +1,12 @@
 """Company lock, platform rule, version labels and referral dedup. Runs on a throwaway database."""
 import datetime, pathlib, sys, tempfile
 sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent.parent))
-import db, safeguards as sg
+import db, safeguards as sg, util
+
+# Version labels depend on the masters folder layout (one master per family vs the old J_/HM_ tier files).
+# Pin the legacy tier-file layout here so this test does not depend on the real masters\ folder.
+_LEGACY = pathlib.Path(tempfile.mkdtemp())
+util.MASTERS = _LEGACY
 
 db.DB_PATH = pathlib.Path(tempfile.mkdtemp()) / "t.db"
 c = db.conn()
@@ -20,6 +25,13 @@ def add(jid, company, family, tier, status, score=60, applied=None):
 assert sg.norm_company("Pavago, LLC") == sg.norm_company("pavago.com") == sg.norm_company("Pavago (Remote)") == "pavago"
 assert sg.norm_company("The Acme Group Ltd") == "acme"
 assert sg.version_label("dev", "HM") == "HM_ Dev" and sg.version_label("admin", "J") == "J_ Admin"
+# one-master layout (masters\dev.docx exists): the label is the family alone, the tier is only the role level
+_ONE = pathlib.Path(tempfile.mkdtemp())
+(_ONE / "dev.docx").write_bytes(b"x")
+util.MASTERS = _ONE
+assert sg.version_label("dev", "HM") == sg.FAMILY_LABEL.get("dev", "Dev")
+assert sg.version_label("admin", "J") == "J_ Admin"  # no admin.docx in this folder -> falls back to the tier label
+util.MASTERS = _LEGACY
 assert sg.norm_profile_url("https://za.linkedin.com/in/jane-doe-123?trk=x") == sg.norm_profile_url("https://www.linkedin.com/in/jane-doe-123/")
 assert sg.is_platform({"company": "Pavago"}, sg.settings(CFG))
 assert not sg.is_platform({"company": "Magic Leap"}, sg.settings(CFG))
