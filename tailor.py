@@ -65,6 +65,9 @@ def structure(doc):
     return _structure_headings(paras)
 
 
+_ROLE_LINE = re.compile(r"\b(?:19|20)\d\d\s*-\s*(?:Present|Current|[A-Z][a-z]{2,8}\.?\s+(?:19|20)\d\d)\s*$")
+
+
 def _structure_flat(paras):
     """One-master format (Masters 3.x): no heading styles; bullets are list paragraphs,
     role lines / section titles are plain short paragraphs, skills are comma lists."""
@@ -86,6 +89,8 @@ def _structure_flat(paras):
                 items.append({"id": f"p{i}", "kind": "bullet", "text": txt})
             continue
         if re.match(r"^(tech stack|tools)\s*:", txt, re.I):
+            continue
+        if _ROLE_LINE.search(txt):  # "Employer, Place - Title Mon YYYY - Present": never edited or reordered
             continue
         if txt.count(",") >= 3 and len(txt) > 60:
             skills.append(i)
@@ -202,7 +207,8 @@ def fix_header(doc, family, cfg):
     headline = cfg["families"][family].get("headline")
     if headline:
         for t in hdr.iter(W_T):
-            if t.text and "Full-Stack Developer" in t.text and headline != "Full-Stack Developer":
+            if t.text and "Full-Stack Developer" in t.text and headline != "Full-Stack Developer" \
+                    and headline not in t.text:
                 t.text = t.text.replace("Full-Stack Developer", headline)
                 break
 
