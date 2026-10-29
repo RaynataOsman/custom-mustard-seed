@@ -1,4 +1,4 @@
 @echo off
 cd /d "%~dp0"
-title Job Engine dashboard - close this window to stop it
-python app.py
+title Mustard Seed CUSTOM dashboard (port 8777) - close this window to stop it
+python app.py --port 8777

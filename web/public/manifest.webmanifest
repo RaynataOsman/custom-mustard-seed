@@ -1,4 +1,4 @@
-{
+﻿{
   "name": "Mustard Seed",
   "short_name": "Mustard Seed",
   "description": "Review, approve and track your job applications from anywhere.",
@@ -6,10 +6,11 @@
   "scope": "/",
   "display": "standalone",
   "background_color": "#f7f5ef",
-  "theme_color": "#e4b83e",
+  "theme_color": "#6b7a2a",
   "icons": [
     { "src": "/icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
     { "src": "/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" },
     { "src": "/icon-maskable-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
   ]
 }
+
